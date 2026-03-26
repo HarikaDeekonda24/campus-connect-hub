@@ -1,16 +1,26 @@
+import { useAuth } from '@/lib/auth-context';
 import { mockEvents } from '@/lib/mock-data';
-import { Calendar, MapPin, User, CheckCircle, XCircle, Edit } from 'lucide-react';
+import { Calendar, MapPin, User, CheckCircle, XCircle, Edit, GitBranch } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
 export default function ApproveEventsPage() {
-  const pendingEvents = mockEvents.filter(e => e.status === 'pending');
+  const { user } = useAuth();
+  const userBranches = user?.branches || [];
+  const isAdmin = user?.role === 'admin';
+
+  // HODs see events for their branches; Admin sees all pending
+  const pendingEvents = mockEvents.filter(e =>
+    e.status === 'pending' && (isAdmin || (e.branch && userBranches.includes(e.branch)))
+  );
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
         <h1 className="text-2xl font-display text-foreground">Event Approvals</h1>
-        <p className="text-muted-foreground text-sm mt-1">Review and moderate student-submitted events</p>
+        <p className="text-muted-foreground text-sm mt-1">
+          {isAdmin ? 'Review all pending student-submitted events' : `Review events for: ${userBranches.join(', ')}`}
+        </p>
       </div>
 
       {pendingEvents.length === 0 ? (
@@ -29,7 +39,10 @@ export default function ApproveEventsPage() {
                 <div className="flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="campus-badge-gold capitalize mb-2 inline-block">{event.category.replace('-', ' ')}</span>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="campus-badge-gold capitalize">{event.category.replace('-', ' ')}</span>
+                        {event.branch && <span className="campus-badge-navy flex items-center gap-1"><GitBranch className="w-3 h-3" />{event.branch}</span>}
+                      </div>
                       <h3 className="text-lg font-medium text-foreground">{event.title}</h3>
                     </div>
                     <span className="campus-badge bg-warning/10 text-warning">Pending</span>

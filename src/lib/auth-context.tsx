@@ -22,6 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Default demo login by role
     if (email.includes('student')) { setUser(mockUsers[0]); return true; }
     if (email.includes('faculty')) { setUser(mockUsers[1]); return true; }
+    if (email.includes('hod')) { setUser(mockUsers[3]); return true; }
     if (email.includes('admin')) { setUser(mockUsers[2]); return true; }
     // Default to student
     setUser(mockUsers[0]);

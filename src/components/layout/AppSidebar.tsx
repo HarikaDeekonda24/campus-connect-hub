@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Calendar, PlusCircle, MapPin, MessageSquare, Bot, ClipboardCheck, Users, BarChart3, Shield, FileText, UserCircle, LogOut,
+  LayoutDashboard, Calendar, PlusCircle, MapPin, MessageSquare, ClipboardCheck, Users, BarChart3, Shield, FileText, UserCircle, LogOut,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/lib/auth-context';
@@ -18,6 +18,14 @@ const studentNav = [
 ];
 
 const facultyNav = [
+  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+  { title: 'Events', url: '/events', icon: Calendar },
+  { title: 'Attendance', url: '/attendance', icon: ClipboardCheck },
+  { title: 'Concerns', url: '/concerns', icon: MessageSquare },
+  { title: 'Profile', url: '/profile', icon: UserCircle },
+];
+
+const hodNav = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Approve Events', url: '/approve-events', icon: FileText },
   { title: 'Events', url: '/events', icon: Calendar },
@@ -42,7 +50,17 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
 
-  const navItems = user?.role === 'admin' ? adminNav : user?.role === 'faculty' ? facultyNav : studentNav;
+  const getNav = () => {
+    switch (user?.role) {
+      case 'admin': return adminNav;
+      case 'hod': return hodNav;
+      case 'faculty': return facultyNav;
+      default: return studentNav;
+    }
+  };
+
+  const navItems = getNav();
+  const roleLabel = user?.role === 'hod' ? 'HOD' : user?.role;
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
@@ -53,7 +71,7 @@ export function AppSidebar() {
         {!collapsed && (
           <div>
             <h1 className="text-sm font-bold text-primary-foreground font-display tracking-wide">Campus Connect</h1>
-            <p className="text-xs text-primary-foreground/60 capitalize">{user?.role} Portal</p>
+            <p className="text-xs text-primary-foreground/60 capitalize">{roleLabel} Portal</p>
           </div>
         )}
       </div>

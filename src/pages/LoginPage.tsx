@@ -78,10 +78,10 @@ export default function LoginPage() {
 
           <div className="mt-8">
             <p className="text-xs text-muted-foreground text-center mb-3">Quick demo access</p>
-            <div className="grid grid-cols-3 gap-2">
-              {['student', 'faculty', 'admin'].map(role => (
+            <div className="grid grid-cols-2 gap-2">
+              {['student', 'faculty', 'hod', 'admin'].map(role => (
                 <button key={role} onClick={() => demoLogin(role)} className="h-9 rounded-lg border bg-card text-sm font-medium capitalize hover:bg-muted transition-colors text-foreground">
-                  {role}
+                  {role === 'hod' ? 'HOD' : role}
                 </button>
               ))}
             </div>

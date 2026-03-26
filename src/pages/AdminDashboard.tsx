@@ -1,6 +1,6 @@
-import { Users, Calendar, BarChart3, Shield, AlertCircle, TrendingUp, Activity } from 'lucide-react';
+import { Users, Calendar, BarChart3, Shield, AlertCircle, Activity, GitBranch } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { mockEvents, mockConcerns, mockUsers } from '@/lib/mock-data';
+import { mockEvents, mockConcerns, mockUsers, ALL_BRANCHES } from '@/lib/mock-data';
 import { motion } from 'framer-motion';
 
 export default function AdminDashboard() {
@@ -11,7 +11,7 @@ export default function AdminDashboard() {
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="campus-gradient rounded-2xl p-6 md:p-8 text-primary-foreground">
         <p className="text-primary-foreground/60 text-sm">Admin Panel</p>
         <h1 className="text-2xl md:text-3xl font-display mt-1">Welcome, {user?.name}</h1>
-        <p className="text-primary-foreground/70 mt-2 text-sm">System overview and management</p>
+        <p className="text-primary-foreground/70 mt-2 text-sm">Full system access · All branches</p>
       </motion.div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -42,35 +42,48 @@ export default function AdminDashboard() {
                   <div className="w-8 h-8 rounded-full campus-gradient flex items-center justify-center text-primary-foreground text-xs font-medium">{u.name.charAt(0)}</div>
                   <div>
                     <p className="text-sm font-medium text-foreground">{u.name}</p>
-                    <p className="text-xs text-muted-foreground">{u.department}</p>
+                    <p className="text-xs text-muted-foreground">{u.branches.join(', ')}</p>
                   </div>
                 </div>
-                <span className={`campus-badge capitalize ${u.role === 'admin' ? 'campus-badge-destructive' : u.role === 'faculty' ? 'campus-badge-navy' : 'campus-badge-success'}`}>{u.role}</span>
+                <span className={`campus-badge capitalize ${u.role === 'admin' ? 'campus-badge-destructive' : u.role === 'hod' ? 'campus-badge-gold' : u.role === 'faculty' ? 'campus-badge-navy' : 'campus-badge-success'}`}>
+                  {u.role === 'hod' ? 'HOD' : u.role}
+                </span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Activity */}
-        <div className="campus-card p-5">
-          <h2 className="text-lg font-display text-foreground mb-4 flex items-center gap-2"><Activity className="w-5 h-5" /> Recent Activity</h2>
-          <div className="space-y-4">
-            {[
-              { text: 'New event "Web Dev Bootcamp" submitted', time: '2h ago', icon: Calendar },
-              { text: 'Student concern about Wi-Fi submitted', time: '5h ago', icon: AlertCircle },
-              { text: 'HackCampus 2026 approved by faculty', time: '1d ago', icon: TrendingUp },
-              { text: 'New student registered: Arun Kumar', time: '2d ago', icon: Users },
-            ].map((activity, i) => (
-              <div key={i} className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <activity.icon className="w-4 h-4 text-muted-foreground" />
+        {/* Branch overview & Activity */}
+        <div className="space-y-6">
+          <div className="campus-card p-5">
+            <h2 className="text-lg font-display text-foreground mb-4 flex items-center gap-2"><GitBranch className="w-5 h-5" /> Branches</h2>
+            <div className="flex flex-wrap gap-2">
+              {ALL_BRANCHES.map(b => (
+                <span key={b} className="campus-badge-navy">{b}</span>
+              ))}
+            </div>
+          </div>
+
+          <div className="campus-card p-5">
+            <h2 className="text-lg font-display text-foreground mb-4 flex items-center gap-2"><Activity className="w-5 h-5" /> Recent Activity</h2>
+            <div className="space-y-4">
+              {[
+                { text: 'New event "Web Dev Bootcamp" submitted (CSE)', time: '2h ago', icon: Calendar },
+                { text: 'Student concern about Wi-Fi submitted', time: '5h ago', icon: AlertCircle },
+                { text: 'HOD approved HackCampus 2026', time: '1d ago', icon: Shield },
+                { text: 'New student registered: Arun Kumar (CSE)', time: '2d ago', icon: Users },
+              ].map((activity, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <activity.icon className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-foreground">{activity.text}</p>
+                    <p className="text-xs text-muted-foreground">{activity.time}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-foreground">{activity.text}</p>
-                  <p className="text-xs text-muted-foreground">{activity.time}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
