@@ -26,7 +26,12 @@ export default function StudentDashboard() {
         <div className="relative z-10">
           <p className="text-primary-foreground/60 text-sm">Good morning,</p>
           <h1 className="text-2xl md:text-3xl font-display mt-1">{user?.name}</h1>
-          <p className="text-primary-foreground/70 mt-2 text-sm">You have {approvedEvents.length} upcoming events this month</p>
+          <div className="flex items-center gap-3 mt-2">
+            <p className="text-primary-foreground/70 text-sm">You have {approvedEvents.length} upcoming events</p>
+            {user?.branches?.[0] && (
+              <span className="px-2 py-0.5 rounded bg-primary-foreground/20 text-primary-foreground text-xs font-medium">{user.branches[0]}</span>
+            )}
+          </div>
         </div>
       </motion.div>
 
@@ -60,6 +65,7 @@ export default function StudentDashboard() {
                 <div className="h-36 campus-gradient relative flex items-center justify-center">
                   <Zap className="w-12 h-12 text-gold/30" />
                   <span className="campus-badge-gold absolute top-3 left-3">{event.category}</span>
+                  {event.branch && <span className="campus-badge-navy absolute top-3 right-3">{event.branch}</span>}
                 </div>
                 <div className="p-4">
                   <h3 className="font-medium text-foreground">{event.title}</h3>

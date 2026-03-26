@@ -1,17 +1,18 @@
 import { useState } from 'react';
-import { Upload, Calendar, MapPin, Link as LinkIcon, Users, Tag } from 'lucide-react';
+import { Upload, Calendar, MapPin, Link as LinkIcon, Users, Tag, GitBranch } from 'lucide-react';
+import { ALL_BRANCHES } from '@/lib/mock-data';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
 export default function SubmitEventPage() {
   const [form, setForm] = useState({
-    name: '', description: '', date: '', time: '', location: '', organizer: '', category: 'workshop', registrationLink: '',
+    name: '', description: '', date: '', time: '', location: '', organizer: '', category: 'workshop', registrationLink: '', branch: '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success('Event submitted for approval!', { description: 'Faculty will review your event shortly.' });
-    setForm({ name: '', description: '', date: '', time: '', location: '', organizer: '', category: 'workshop', registrationLink: '' });
+    toast.success('Event submitted for approval!', { description: 'HOD of the related branch will review your event.' });
+    setForm({ name: '', description: '', date: '', time: '', location: '', organizer: '', category: 'workshop', registrationLink: '', branch: '' });
   };
 
   const update = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
@@ -20,7 +21,7 @@ export default function SubmitEventPage() {
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-display text-foreground">Submit an Event</h1>
-        <p className="text-muted-foreground text-sm mt-1">Share an event with the campus community. It will be reviewed by faculty before publishing.</p>
+        <p className="text-muted-foreground text-sm mt-1">Share an event with the campus community. It will be reviewed by the HOD before publishing.</p>
       </div>
 
       <motion.form initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} onSubmit={handleSubmit} className="campus-card p-6 space-y-5">
@@ -56,6 +57,13 @@ export default function SubmitEventPage() {
               <option value="workshop">Workshop</option>
               <option value="seminar">Seminar</option>
               <option value="club-event">Club Event</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground mb-1.5 block flex items-center gap-1.5"><GitBranch className="w-3.5 h-3.5" />Branch *</label>
+            <select required value={form.branch} onChange={e => update('branch', e.target.value)} className="campus-input">
+              <option value="">Select branch</option>
+              {ALL_BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
           <div>
