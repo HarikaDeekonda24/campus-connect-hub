@@ -1,21 +1,49 @@
 import { useState } from 'react';
-import { Upload, Calendar, MapPin, Link as LinkIcon, Users, Tag, GitBranch } from 'lucide-react';
+import { Upload, Calendar, MapPin, Link as LinkIcon, Users, Tag, GitBranch, Check, X } from 'lucide-react';
 import { ALL_BRANCHES } from '@/lib/mock-data';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
 export default function SubmitEventPage() {
   const [form, setForm] = useState({
-    name: '', description: '', date: '', time: '', location: '', organizer: '', category: 'workshop', registrationLink: '', branch: '',
+    name: '', description: '', date: '', time: '', location: '', organizer: '', category: 'workshop', registrationLink: '',
   });
+  const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
+  const [branchOpen, setBranchOpen] = useState(false);
+
+  const allSelected = selectedBranches.includes('All Branches');
+
+  const toggleBranch = (branch: string) => {
+    if (branch === 'All Branches') {
+      setSelectedBranches(prev => prev.includes('All Branches') ? [] : ['All Branches']);
+    } else {
+      setSelectedBranches(prev => {
+        const without = prev.filter(b => b !== 'All Branches');
+        return without.includes(branch) ? without.filter(b => b !== branch) : [...without, branch];
+      });
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (selectedBranches.length === 0) {
+      toast.error('Please select at least one branch.');
+      return;
+    }
     toast.success('Event submitted for approval!', { description: 'HOD of the related branch will review your event.' });
-    setForm({ name: '', description: '', date: '', time: '', location: '', organizer: '', category: 'workshop', registrationLink: '', branch: '' });
+    setForm({ name: '', description: '', date: '', time: '', location: '', organizer: '', category: 'workshop', registrationLink: '' });
+    setSelectedBranches([]);
   };
 
   const update = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
+
+  const branchLabel = allSelected
+    ? 'All Branches'
+    : selectedBranches.length > 0
+      ? selectedBranches.join(', ')
+      : 'Select branches';
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -60,11 +88,38 @@ export default function SubmitEventPage() {
             </select>
           </div>
           <div>
-            <label className="text-sm font-medium text-foreground mb-1.5 block flex items-center gap-1.5"><GitBranch className="w-3.5 h-3.5" />Branch *</label>
-            <select required value={form.branch} onChange={e => update('branch', e.target.value)} className="campus-input">
-              <option value="">Select branch</option>
-              {ALL_BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
-            </select>
+            <label className="text-sm font-medium text-foreground mb-1.5 block flex items-center gap-1.5"><GitBranch className="w-3.5 h-3.5" />Branches *</label>
+            <Popover open={branchOpen} onOpenChange={setBranchOpen}>
+              <PopoverTrigger asChild>
+                <button type="button" className="campus-input text-left flex items-center justify-between w-full">
+                  <span className={`truncate ${selectedBranches.length === 0 ? 'text-muted-foreground' : 'text-foreground'}`}>{branchLabel}</span>
+                  <GitBranch className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2 space-y-1" align="start">
+                <label className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer text-sm font-medium text-foreground">
+                  <Checkbox checked={allSelected} onCheckedChange={() => toggleBranch('All Branches')} />
+                  All Branches
+                </label>
+                <div className="h-px bg-border my-1" />
+                {ALL_BRANCHES.map(b => (
+                  <label key={b} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer text-sm text-foreground">
+                    <Checkbox checked={allSelected || selectedBranches.includes(b)} disabled={allSelected} onCheckedChange={() => toggleBranch(b)} />
+                    {b}
+                  </label>
+                ))}
+              </PopoverContent>
+            </Popover>
+            {selectedBranches.length > 0 && !allSelected && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {selectedBranches.map(b => (
+                  <span key={b} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                    {b}
+                    <button type="button" onClick={() => toggleBranch(b)} className="hover:text-destructive"><X className="w-3 h-3" /></button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           <div>
             <label className="text-sm font-medium text-foreground mb-1.5 block flex items-center gap-1.5"><LinkIcon className="w-3.5 h-3.5" />Registration Link</label>
