@@ -64,8 +64,8 @@ export default function LoginPage() {
           <p className="text-muted-foreground mb-6">Sign in with your college credentials</p>
 
           {registered && (
-            <div className="p-3 rounded-lg bg-green-50 border border-green-200 mb-4">
-              <p className="text-sm text-green-800">Account created successfully! Please sign in.</p>
+            <div className="p-3 rounded-lg bg-accent/10 border border-accent/20 mb-4">
+              <p className="text-sm text-accent-foreground">Account created successfully! Please sign in.</p>
             </div>
           )}
 

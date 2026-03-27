@@ -26,6 +26,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+      <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
+      <Route path="/pending-approval" element={<PendingApprovalPage />} />
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/events" element={<ProtectedRoute><EventsPage /></ProtectedRoute>} />
       <Route path="/submit-event" element={<ProtectedRoute><SubmitEventPage /></ProtectedRoute>} />
