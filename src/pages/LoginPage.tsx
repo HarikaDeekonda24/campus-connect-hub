@@ -1,23 +1,30 @@
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Shield, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
 
+  const registered = (location.state as any)?.registered;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) { setError('Please enter your email'); return; }
-    const success = login(email, password);
-    if (success) navigate('/dashboard');
-    else setError('Invalid credentials');
+    const result = login(email, password);
+    if (result.pendingApproval) {
+      navigate('/pending-approval');
+      return;
+    }
+    if (result.success) navigate('/dashboard');
+    else setError('Invalid credentials. Please check your email and password.');
   };
 
   const demoLogin = (role: string) => {
@@ -54,11 +61,17 @@ export default function LoginPage() {
           </div>
 
           <h2 className="text-2xl font-display text-foreground mb-1">Welcome back</h2>
-          <p className="text-muted-foreground mb-8">Sign in with your college credentials</p>
+          <p className="text-muted-foreground mb-6">Sign in with your college credentials</p>
+
+          {registered && (
+            <div className="p-3 rounded-lg bg-green-50 border border-green-200 mb-4">
+              <p className="text-sm text-green-800">Account created successfully! Please sign in.</p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-foreground mb-1.5 block">Email</label>
+              <label className="text-sm font-medium text-foreground mb-1.5 block">College Email</label>
               <input type="email" value={email} onChange={e => { setEmail(e.target.value); setError(''); }} placeholder="you@campus.edu" className="campus-input" />
             </div>
             <div>
@@ -70,11 +83,19 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+            <div className="flex justify-end">
+              <button type="button" className="text-xs text-accent-foreground hover:underline">Forgot Password?</button>
+            </div>
             {error && <p className="text-destructive text-sm">{error}</p>}
             <button type="submit" className="w-full h-10 rounded-lg campus-gradient text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity">
               Sign In
             </button>
           </form>
+
+          <p className="text-center text-sm text-muted-foreground mt-4">
+            Don't have an account?{' '}
+            <Link to="/register" className="text-accent-foreground font-medium hover:underline">Register</Link>
+          </p>
 
           <div className="mt-8">
             <p className="text-xs text-muted-foreground text-center mb-3">Quick demo access</p>

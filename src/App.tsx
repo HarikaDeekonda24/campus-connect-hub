@@ -5,6 +5,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import PendingApprovalPage from "./pages/PendingApprovalPage";
 import DashboardPage from "./pages/DashboardPage";
 import EventsPage from "./pages/EventsPage";
 import SubmitEventPage from "./pages/SubmitEventPage";
