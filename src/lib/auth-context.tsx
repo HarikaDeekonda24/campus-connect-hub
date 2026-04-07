@@ -37,8 +37,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (exists) return { success: false, error: 'Email already registered' };
 
     // Validate college email
-    if (!data.email.endsWith('@campus.edu')) {
-      return { success: false, error: 'Please use a valid college email (@campus.edu)' };
+    if (!data.email.endsWith('@gnits.ac.in')) {
+      return { success: false, error: 'Please use a valid college email (@gnits.ac.in)' };
     }
 
     const newUser: User = {
