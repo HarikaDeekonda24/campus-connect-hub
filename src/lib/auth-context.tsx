@@ -101,10 +101,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPendingFaculty(prev => prev.filter(u => u.id !== userId));
   }, []);
 
+  const createHOD = useCallback((data: CreateHODData): { success: boolean; error?: string } => {
+    const exists = registeredUsers.find(u => u.email === data.email);
+    if (exists) return { success: false, error: 'Email already registered' };
+    if (!data.email.endsWith('@gnits.ac.in')) return { success: false, error: 'Must use @gnits.ac.in email' };
+
+    const newHOD: User = {
+      id: String(Date.now()),
+      name: data.name,
+      email: data.email,
+      role: 'hod',
+      department: data.branches[0] || 'General',
+      branches: data.branches,
+    };
+    setRegisteredUsers(prev => [...prev, newHOD]);
+    return { success: true };
+  }, [registeredUsers]);
+
   return (
     <AuthContext.Provider value={{
       user, login, logout, register, isAuthenticated: !!user,
-      registeredUsers, pendingFaculty, approveFaculty, rejectFaculty
+      registeredUsers, pendingFaculty, approveFaculty, rejectFaculty, createHOD
     }}>
       {children}
     </AuthContext.Provider>
