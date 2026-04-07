@@ -8,6 +8,7 @@ interface RegisterData {
   phone: string;
   role: 'student' | 'faculty';
   branches: Branch[];
+  rollNumber?: string;
   password: string;
 }
 

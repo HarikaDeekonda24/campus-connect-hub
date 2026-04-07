@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useNavigate, Link } from 'react-router-dom';
-import { Shield, Eye, EyeOff, ChevronDown, Check, X } from 'lucide-react';
+import { Eye, EyeOff, Check, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ALL_BRANCHES, Branch } from '@/lib/mock-data';
+import gnitsLogo from '@/assets/gnits-logo.png';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -13,12 +14,13 @@ export default function RegisterPage() {
     firstName: '', lastName: '', email: '', phone: '',
     role: '' as '' | 'student' | 'faculty',
     branches: [] as Branch[],
+    rollNumber: '',
     password: '', confirmPassword: '',
   });
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
-  const [step, setStep] = useState(1); // 1: personal, 2: role+branch, 3: credentials
+  const [step, setStep] = useState(1);
 
   const updateField = (field: string, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -44,13 +46,14 @@ export default function RegisterPage() {
       if (!form.firstName.trim()) return 'First name is required';
       if (!form.lastName.trim()) return 'Last name is required';
       if (!form.email.trim()) return 'Email is required';
-      if (!form.email.endsWith('@campus.edu')) return 'Please use a valid college email (@campus.edu)';
+      if (!form.email.endsWith('@gnits.ac.in')) return 'Please use a valid college email (@gnits.ac.in)';
       if (!form.phone.trim()) return 'Phone number is required';
       if (!/^\d{10}$/.test(form.phone)) return 'Enter a valid 10-digit phone number';
     }
     if (step === 2) {
       if (!form.role) return 'Please select a role';
       if (form.branches.length === 0) return 'Please select at least one branch';
+      if (form.role === 'student' && !form.rollNumber.trim()) return 'Roll number is required';
     }
     if (step === 3) {
       if (form.password.length < 6) return 'Password must be at least 6 characters';
@@ -77,6 +80,7 @@ export default function RegisterPage() {
       phone: form.phone,
       role: form.role as 'student' | 'faculty',
       branches: form.branches,
+      rollNumber: form.role === 'student' ? form.rollNumber : undefined,
       password: form.password,
     });
 
@@ -102,9 +106,7 @@ export default function RegisterPage() {
           ))}
         </div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="relative z-10 text-center">
-          <div className="w-20 h-20 rounded-2xl campus-gradient-gold flex items-center justify-center mx-auto mb-8 shadow-xl">
-            <Shield className="w-10 h-10 text-accent-foreground" />
-          </div>
+          <img src={gnitsLogo} alt="GNITS Logo" className="w-24 h-24 rounded-2xl mx-auto mb-8 shadow-xl object-contain bg-white p-1" />
           <h1 className="text-4xl font-display text-primary-foreground mb-4">Join Campus Connect</h1>
           <p className="text-primary-foreground/70 text-lg max-w-md">Create your account and become part of the campus community.</p>
         </motion.div>
@@ -114,9 +116,7 @@ export default function RegisterPage() {
       <div className="flex-1 flex items-center justify-center p-6 bg-background overflow-y-auto">
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="w-full max-w-lg">
           <div className="lg:hidden flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl campus-gradient-gold flex items-center justify-center">
-              <Shield className="w-5 h-5 text-accent-foreground" />
-            </div>
+            <img src={gnitsLogo} alt="GNITS Logo" className="w-10 h-10 rounded-xl object-contain bg-white p-0.5" />
             <h1 className="text-2xl font-display text-foreground">Campus Connect</h1>
           </div>
 
@@ -158,8 +158,8 @@ export default function RegisterPage() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-foreground mb-1.5 block">College Email</label>
-                  <input type="email" value={form.email} onChange={e => updateField('email', e.target.value)} placeholder="you@campus.edu" className="campus-input" />
-                  <p className="text-xs text-muted-foreground mt-1">Must be a valid @campus.edu email</p>
+                  <input type="email" value={form.email} onChange={e => updateField('email', e.target.value)} placeholder="you@gnits.ac.in" className="campus-input" />
+                  <p className="text-xs text-muted-foreground mt-1">Must be a valid @gnits.ac.in email</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-foreground mb-1.5 block">Phone Number</label>
@@ -178,7 +178,7 @@ export default function RegisterPage() {
                       <button
                         key={role}
                         type="button"
-                        onClick={() => { updateField('role', role); updateField('branches', []); }}
+                        onClick={() => { updateField('role', role); updateField('branches', []); updateField('rollNumber', ''); }}
                         className={`p-4 rounded-xl border-2 text-left transition-all ${
                           form.role === role
                             ? 'border-accent bg-accent/10 shadow-sm'
@@ -196,45 +196,55 @@ export default function RegisterPage() {
                 </div>
 
                 {form.role && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-3">
-                      Select Branch{form.role === 'faculty' ? 'es' : ''}
-                    </h3>
-                    <p className="text-xs text-muted-foreground mb-3">
-                      {form.role === 'student' ? 'Choose your department branch' : 'Select all branches you teach in'}
-                    </p>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                      {ALL_BRANCHES.map(branch => {
-                        const selected = form.branches.includes(branch);
-                        return (
-                          <button
-                            key={branch}
-                            type="button"
-                            onClick={() => toggleBranch(branch)}
-                            className={`h-10 rounded-lg text-sm font-medium transition-all ${
-                              selected
-                                ? 'campus-gradient text-primary-foreground shadow-sm'
-                                : 'border bg-card text-foreground hover:bg-muted'
-                            }`}
-                          >
-                            {branch}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {form.branches.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-3">
-                        {form.branches.map(b => (
-                          <span key={b} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-accent/15 text-accent-foreground text-xs font-medium">
-                            {b}
-                            {form.role === 'faculty' && (
-                              <X className="w-3 h-3 cursor-pointer hover:text-destructive" onClick={() => toggleBranch(b)} />
-                            )}
-                          </span>
-                        ))}
+                  <>
+                    {form.role === 'student' && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-3">Roll Number</h3>
+                        <input value={form.rollNumber} onChange={e => updateField('rollNumber', e.target.value.toUpperCase())} placeholder="e.g. 22251A0501" className="campus-input" />
+                        <p className="text-xs text-muted-foreground mt-1">Enter your college roll number</p>
                       </div>
                     )}
-                  </div>
+
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-3">
+                        Select Branch{form.role === 'faculty' ? 'es' : ''}
+                      </h3>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        {form.role === 'student' ? 'Choose your department branch' : 'Select all branches you teach in'}
+                      </p>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {ALL_BRANCHES.map(branch => {
+                          const selected = form.branches.includes(branch);
+                          return (
+                            <button
+                              key={branch}
+                              type="button"
+                              onClick={() => toggleBranch(branch)}
+                              className={`h-10 rounded-lg text-sm font-medium transition-all ${
+                                selected
+                                  ? 'campus-gradient text-primary-foreground shadow-sm'
+                                  : 'border bg-card text-foreground hover:bg-muted'
+                              }`}
+                            >
+                              {branch}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {form.branches.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-3">
+                          {form.branches.map(b => (
+                            <span key={b} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-accent/15 text-accent-foreground text-xs font-medium">
+                              {b}
+                              {form.role === 'faculty' && (
+                                <X className="w-3 h-3 cursor-pointer hover:text-destructive" onClick={() => toggleBranch(b)} />
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
               </motion.div>
             )}
@@ -276,6 +286,7 @@ export default function RegisterPage() {
                   <p className="text-sm text-foreground">{form.firstName} {form.lastName}</p>
                   <p className="text-xs text-muted-foreground">{form.email}</p>
                   <p className="text-xs text-muted-foreground capitalize">Role: {form.role}</p>
+                  {form.role === 'student' && <p className="text-xs text-muted-foreground">Roll No: {form.rollNumber}</p>}
                   <p className="text-xs text-muted-foreground">Branch: {form.branches.join(', ')}</p>
                 </div>
               </motion.div>

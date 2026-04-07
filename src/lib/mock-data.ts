@@ -63,12 +63,12 @@ export interface Notification {
 }
 
 export const mockUsers: User[] = [
-  { id: '1', name: 'Arun Kumar', email: 'arun@campus.edu', role: 'student', department: 'Computer Science', rollNumber: 'CS2024001', branches: ['CSE'] },
-  { id: '2', name: 'Dr. Priya Sharma', email: 'priya@campus.edu', role: 'faculty', department: 'Computer Science', branches: ['CSE', 'CSM'] },
-  { id: '3', name: 'Admin User', email: 'admin@campus.edu', role: 'admin', department: 'Administration', branches: [...ALL_BRANCHES] },
-  { id: '4', name: 'Dr. Rajesh Verma', email: 'hod@campus.edu', role: 'hod', department: 'Computer Science', branches: ['CSE', 'CSD'] },
-  { id: '5', name: 'Meera Patel', email: 'meera@campus.edu', role: 'student', department: 'Electronics', rollNumber: 'EC2024015', branches: ['ECE'] },
-  { id: '6', name: 'Dr. Sunita Rao', email: 'sunita@campus.edu', role: 'faculty', department: 'Information Technology', branches: ['IT', 'CSE'] },
+  { id: '1', name: 'Arun Kumar', email: 'arun@gnits.ac.in', role: 'student', department: 'Computer Science', rollNumber: 'CS2024001', branches: ['CSE'] },
+  { id: '2', name: 'Dr. Priya Sharma', email: 'priya@gnits.ac.in', role: 'faculty', department: 'Computer Science', branches: ['CSE', 'CSM'] },
+  { id: '3', name: 'Admin User', email: 'admin@gnits.ac.in', role: 'admin', department: 'Administration', branches: [...ALL_BRANCHES] },
+  { id: '4', name: 'Dr. Rajesh Verma', email: 'hod@gnits.ac.in', role: 'hod', department: 'Computer Science', branches: ['CSE', 'CSD'] },
+  { id: '5', name: 'Meera Patel', email: 'meera@gnits.ac.in', role: 'student', department: 'Electronics', rollNumber: 'EC2024015', branches: ['ECE'] },
+  { id: '6', name: 'Dr. Sunita Rao', email: 'sunita@gnits.ac.in', role: 'faculty', department: 'Information Technology', branches: ['IT', 'CSE'] },
 ];
 
 export const mockEvents: Event[] = [

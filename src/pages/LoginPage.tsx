@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { Shield, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
+import gnitsLogo from '@/assets/gnits-logo.png';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -27,11 +28,6 @@ export default function LoginPage() {
     else setError('Invalid credentials. Please check your email and password.');
   };
 
-  const demoLogin = (role: string) => {
-    login(`${role}@campus.edu`, 'demo');
-    navigate('/dashboard');
-  };
-
   return (
     <div className="min-h-screen flex">
       {/* Left decorative panel */}
@@ -42,9 +38,7 @@ export default function LoginPage() {
           ))}
         </div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="relative z-10 text-center">
-          <div className="w-20 h-20 rounded-2xl campus-gradient-gold flex items-center justify-center mx-auto mb-8 shadow-xl">
-            <Shield className="w-10 h-10 text-accent-foreground" />
-          </div>
+          <img src={gnitsLogo} alt="GNITS Logo" className="w-24 h-24 rounded-2xl mx-auto mb-8 shadow-xl object-contain bg-white p-1" />
           <h1 className="text-4xl font-display text-primary-foreground mb-4">Campus Connect</h1>
           <p className="text-primary-foreground/70 text-lg max-w-md">Your digital gateway to campus events, navigation, and academic life.</p>
         </motion.div>
@@ -54,9 +48,7 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center p-6 bg-background">
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="w-full max-w-md">
           <div className="lg:hidden flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl campus-gradient-gold flex items-center justify-center">
-              <Shield className="w-5 h-5 text-accent-foreground" />
-            </div>
+            <img src={gnitsLogo} alt="GNITS Logo" className="w-10 h-10 rounded-xl object-contain bg-white p-0.5" />
             <h1 className="text-2xl font-display text-foreground">Campus Connect</h1>
           </div>
 
@@ -72,7 +64,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="text-sm font-medium text-foreground mb-1.5 block">College Email</label>
-              <input type="email" value={email} onChange={e => { setEmail(e.target.value); setError(''); }} placeholder="you@campus.edu" className="campus-input" />
+              <input type="email" value={email} onChange={e => { setEmail(e.target.value); setError(''); }} placeholder="you@gnits.ac.in" className="campus-input" />
             </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-1.5 block">Password</label>
@@ -96,17 +88,6 @@ export default function LoginPage() {
             Don't have an account?{' '}
             <Link to="/register" className="text-accent-foreground font-medium hover:underline">Register</Link>
           </p>
-
-          <div className="mt-8">
-            <p className="text-xs text-muted-foreground text-center mb-3">Quick demo access</p>
-            <div className="grid grid-cols-2 gap-2">
-              {['student', 'faculty', 'hod', 'admin'].map(role => (
-                <button key={role} onClick={() => demoLogin(role)} className="h-9 rounded-lg border bg-card text-sm font-medium capitalize hover:bg-muted transition-colors text-foreground">
-                  {role === 'hod' ? 'HOD' : role}
-                </button>
-              ))}
-            </div>
-          </div>
         </motion.div>
       </div>
     </div>
