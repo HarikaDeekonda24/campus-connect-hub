@@ -8,6 +8,7 @@ interface RegisterData {
   phone: string;
   role: 'student' | 'faculty';
   branches: Branch[];
+  rollNumber?: string;
   password: string;
 }
 
@@ -36,8 +37,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (exists) return { success: false, error: 'Email already registered' };
 
     // Validate college email
-    if (!data.email.endsWith('@campus.edu')) {
-      return { success: false, error: 'Please use a valid college email (@campus.edu)' };
+    if (!data.email.endsWith('@gnits.ac.in')) {
+      return { success: false, error: 'Please use a valid college email (@gnits.ac.in)' };
     }
 
     const newUser: User = {
@@ -47,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       role: data.role,
       department: data.branches[0] || 'General',
       branches: data.branches,
-      rollNumber: data.role === 'student' ? `${data.branches[0]}${Date.now().toString().slice(-6)}` : undefined,
+      rollNumber: data.role === 'student' ? data.rollNumber : undefined,
     };
 
     if (data.role === 'faculty') {
