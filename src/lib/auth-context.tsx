@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       role: data.role,
       department: data.branches[0] || 'General',
       branches: data.branches,
-      rollNumber: data.role === 'student' ? `${data.branches[0]}${Date.now().toString().slice(-6)}` : undefined,
+      rollNumber: data.role === 'student' ? data.rollNumber : undefined,
     };
 
     if (data.role === 'faculty') {
