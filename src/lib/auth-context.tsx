@@ -12,6 +12,12 @@ interface RegisterData {
   password: string;
 }
 
+interface CreateHODData {
+  name: string;
+  email: string;
+  branches: Branch[];
+}
+
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => { success: boolean; pendingApproval?: boolean };
@@ -22,6 +28,7 @@ interface AuthContextType {
   pendingFaculty: User[];
   approveFaculty: (userId: string) => void;
   rejectFaculty: (userId: string) => void;
+  createHOD: (data: CreateHODData) => { success: boolean; error?: string };
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
