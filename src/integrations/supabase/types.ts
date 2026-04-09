@@ -110,58 +110,37 @@ export type Database = {
       }
       profiles: {
         Row: {
-          approved: boolean
-          branches: Database["public"]["Enums"]["app_branch"][] | null
-          created_at: string
-          department: string | null
-          email: string
           id: string
-          name: string
+          first_name: string
+          last_name: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          branch: Database["public"]["Enums"]["app_branch"] | null
           roll_number: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          approved?: boolean
-          branches?: Database["public"]["Enums"]["app_branch"][] | null
-          created_at?: string
-          department?: string | null
-          email: string
-          id?: string
-          name: string
-          roll_number?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          approved?: boolean
-          branches?: Database["public"]["Enums"]["app_branch"][] | null
-          created_at?: string
-          department?: string | null
-          email?: string
-          id?: string
-          name?: string
-          roll_number?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      user_roles: {
-        Row: {
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
+          section: string | null
+          is_approved: boolean
+          created_at: string
         }
         Insert: {
           id?: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Update: {
-          id?: string
+          first_name: string
+          last_name?: string | null
           role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
+          branch?: Database["public"]["Enums"]["app_branch"] | null
+          roll_number?: string | null
+          section?: string | null
+          is_approved?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          first_name?: string
+          last_name?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          branch?: Database["public"]["Enums"]["app_branch"] | null
+          roll_number?: string | null
+          section?: string | null
+          is_approved?: boolean
+          created_at?: string
         }
         Relationships: []
       }

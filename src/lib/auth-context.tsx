@@ -51,15 +51,11 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 async function fetchUserProfile(userId: string): Promise<{ user: User | null; error?: string }> {
-  console.log('[fetchUserProfile] querying profiles for id:', userId);
-
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', userId)
     .maybeSingle();
-
-  console.log('[fetchUserProfile] profiles result:', { profile, profileError });
 
   if (profileError) {
     return { user: null, error: `Profiles query error: ${profileError.message} (code: ${profileError.code})` };
@@ -69,24 +65,19 @@ async function fetchUserProfile(userId: string): Promise<{ user: User | null; er
     return { user: null, error: `No profile row found for id = ${userId}` };
   }
 
-  const { data: roleData, error: roleError } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  console.log('[fetchUserProfile] user_roles result:', { roleData, roleError });
+  const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ');
+  const branch = profile.branch as Branch | null;
 
   return {
     user: {
       id: userId,
-      name: profile.name,
-      email: profile.email,
-      role: (roleData?.role as UserRole) || 'student',
-      department: profile.department || 'General',
-      branches: (profile.branches as Branch[]) || [],
+      name: fullName,
+      email: '',
+      role: (profile.role as UserRole) || 'student',
+      department: branch || 'General',
+      branches: branch ? [branch] : [],
       rollNumber: profile.roll_number || undefined,
-      approved: profile.approved,
+      approved: profile.is_approved,
     },
   };
 }
@@ -99,22 +90,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUsers = useCallback(async () => {
     const { data: profiles } = await supabase.from('profiles').select('*');
-    const { data: roles } = await supabase.from('user_roles').select('*');
 
-    if (!profiles || !roles) return;
+    if (!profiles) return;
 
-    const roleMap = new Map(roles.map(r => [r.user_id, r.role as UserRole]));
-
-    const allUsers: User[] = profiles.map(p => ({
-      id: p.id,
-      name: p.name,
-      email: p.email,
-      role: roleMap.get(p.id) || 'student',
-      department: p.department || 'General',
-      branches: (p.branches as Branch[]) || [],
-      rollNumber: p.roll_number || undefined,
-      approved: p.approved,
-    }));
+    const allUsers: User[] = profiles.map(p => {
+      const branch = p.branch as Branch | null;
+      return {
+        id: p.id,
+        name: [p.first_name, p.last_name].filter(Boolean).join(' '),
+        email: '',
+        role: (p.role as UserRole) || 'student',
+        department: branch || 'General',
+        branches: branch ? [branch] : [],
+        rollNumber: p.roll_number || undefined,
+        approved: p.is_approved,
+      };
+    });
 
     setRegisteredUsers(allUsers.filter(u => u.approved));
     setPendingFaculty(allUsers.filter(u => !u.approved && u.role === 'faculty'));
@@ -162,21 +153,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: 'Please use a valid college email (@gnits.ac.in)' };
     }
 
-    const { error } = await supabase.auth.signUp({
+    const { data: signUpData, error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
       options: {
         data: {
-          name: `${data.firstName} ${data.lastName}`,
+          first_name: data.firstName,
+          last_name: data.lastName,
           role: data.role,
-          department: data.branches[0] || 'General',
-          branches: data.branches,
+          branch: data.branches[0] || null,
           roll_number: data.role === 'student' ? data.rollNumber : undefined,
         },
       },
     });
 
     if (error) return { success: false, error: error.message };
+
+    // Students are automatically approved — set is_approved = true while still signed in
+    if (data.role === 'student' && signUpData.user) {
+      await supabase.from('profiles').update({ is_approved: true }).eq('id', signUpData.user.id);
+    }
 
     // Sign out after registration so they can login fresh
     await supabase.auth.signOut();
@@ -201,7 +197,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('[login] Profile fetch failed:', msg);
         return { success: false, error: msg };
       }
-      if (!profile.approved) {
+      // Students are auto-approved — only block faculty/HOD pending approval
+      if (!profile.approved && profile.role !== 'student') {
         await supabase.auth.signOut();
         return { success: false, pendingApproval: true };
       }
@@ -218,13 +215,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const approveFaculty = useCallback(async (userId: string) => {
-    await supabase.from('profiles').update({ approved: true }).eq('id', userId);
+    await supabase.from('profiles').update({ is_approved: true }).eq('id', userId);
     await refreshUsers();
   }, [refreshUsers]);
 
   const rejectFaculty = useCallback(async (userId: string) => {
-    // Delete the user's role first, then their profile
-    await supabase.from('user_roles').delete().eq('user_id', userId);
     await supabase.from('profiles').delete().eq('id', userId);
     await refreshUsers();
   }, [refreshUsers]);
