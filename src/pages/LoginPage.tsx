@@ -32,8 +32,17 @@ export default function LoginPage() {
       navigate('/pending-approval');
       return;
     }
-    if (result.success) navigate('/dashboard');
-    else setError(result.error || 'Invalid credentials. Please check your email and password.');
+    if (result.success) {
+      const roleRoutes: Record<string, string> = {
+        admin: '/admin',
+        hod: '/hod',
+        faculty: '/faculty',
+        student: '/student',
+      };
+      navigate(roleRoutes[result.role ?? 'student'] ?? '/dashboard');
+    } else {
+      setError(result.error || 'Invalid credentials. Please check your email and password.');
+    }
   };
 
   return (

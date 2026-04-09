@@ -35,7 +35,7 @@ interface CreateHODData {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<{ success: boolean; pendingApproval?: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; role?: UserRole; pendingApproval?: boolean; error?: string }>;
   logout: () => Promise<void>;
   register: (data: RegisterData) => Promise<{ success: boolean; pendingApproval?: boolean; error?: string }>;
   isAuthenticated: boolean;
@@ -189,7 +189,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, pendingApproval: true };
       }
       setUser(profile);
-      return { success: true };
+      return { success: true, role: profile.role };
     }
 
     return { success: false, error: 'Login failed' };
