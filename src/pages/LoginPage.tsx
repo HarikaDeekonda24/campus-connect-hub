@@ -13,19 +13,27 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const registered = (location.state as any)?.registered;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) { setError('Please enter your email'); return; }
-    const result = login(email, password);
+    if (!password) { setError('Please enter your password'); return; }
+    
+    setIsLoading(true);
+    setError('');
+    
+    const result = await login(email, password);
+    setIsLoading(false);
+    
     if (result.pendingApproval) {
       navigate('/pending-approval');
       return;
     }
     if (result.success) navigate('/dashboard');
-    else setError('Invalid credentials. Please check your email and password.');
+    else setError(result.error || 'Invalid credentials. Please check your email and password.');
   };
 
   return (
@@ -75,12 +83,9 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
-            <div className="flex justify-end">
-              <button type="button" className="text-xs text-accent-foreground hover:underline">Forgot Password?</button>
-            </div>
             {error && <p className="text-destructive text-sm">{error}</p>}
-            <button type="submit" className="w-full h-10 rounded-lg campus-gradient text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity">
-              Sign In
+            <button type="submit" disabled={isLoading} className="w-full h-10 rounded-lg campus-gradient text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50">
+              {isLoading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 

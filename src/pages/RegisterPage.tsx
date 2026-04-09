@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth, ALL_BRANCHES, Branch } from '@/lib/auth-context';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Check, X } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { ALL_BRANCHES, Branch } from '@/lib/mock-data';
 import gnitsLogo from '@/assets/gnits-logo.png';
 
 export default function RegisterPage() {
@@ -21,6 +20,7 @@ export default function RegisterPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
   const [step, setStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
 
   const updateField = (field: string, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -68,12 +68,15 @@ export default function RegisterPage() {
     setStep(s => s + 1);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const err = validateStep();
     if (err) { setError(err); return; }
 
-    const result = register({
+    setIsLoading(true);
+    setError('');
+
+    const result = await register({
       firstName: form.firstName,
       lastName: form.lastName,
       email: form.email,
@@ -83,6 +86,8 @@ export default function RegisterPage() {
       rollNumber: form.role === 'student' ? form.rollNumber : undefined,
       password: form.password,
     });
+
+    setIsLoading(false);
 
     if (!result.success) {
       setError(result.error || 'Registration failed');
@@ -306,8 +311,8 @@ export default function RegisterPage() {
                   Continue
                 </button>
               ) : (
-                <button type="submit" className="flex-1 h-10 rounded-lg campus-gradient text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity">
-                  Create Account
+                <button type="submit" disabled={isLoading} className="flex-1 h-10 rounded-lg campus-gradient text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50">
+                  {isLoading ? 'Creating Account...' : 'Create Account'}
                 </button>
               )}
             </div>

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Users, Calendar, Shield, AlertCircle, Activity, GitBranch, UserPlus, CheckCircle, XCircle } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { mockEvents, mockConcerns, ALL_BRANCHES, Branch } from '@/lib/mock-data';
+import { mockEvents, mockConcerns } from '@/lib/mock-data';
+import { ALL_BRANCHES, Branch } from '@/lib/auth-context';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
@@ -28,12 +29,12 @@ export default function AdminDashboard() {
     setHodBranches(prev => prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]);
   };
 
-  const handleCreateHOD = (e: React.FormEvent) => {
+  const handleCreateHOD = async (e: React.FormEvent) => {
     e.preventDefault();
     setHodError('');
     if (!hodName.trim() || !hodEmail.trim()) { setHodError('Name and email are required'); return; }
     if (hodBranches.length === 0) { setHodError('Select at least one branch'); return; }
-    const result = createHOD({ name: hodName.trim(), email: hodEmail.trim(), branches: hodBranches });
+    const result = await createHOD({ name: hodName.trim(), email: hodEmail.trim(), branches: hodBranches });
     if (result.success) {
       toast.success(`HOD account created for ${hodName}`);
       setHodName(''); setHodEmail(''); setHodBranches([]);
