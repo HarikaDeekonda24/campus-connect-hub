@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Session } from '@supabase/supabase-js';
 
 export type UserRole = 'student' | 'faculty' | 'hod' | 'admin';
 export type Branch = 'CSE' | 'CSM' | 'CSD' | 'ECE' | 'IT' | 'EVM' | 'EEE';
@@ -56,7 +55,7 @@ async function fetchUserProfile(userId: string): Promise<User | null> {
     .from('profiles')
     .select('*')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
 
   if (!profile) return null;
 
@@ -64,7 +63,7 @@ async function fetchUserProfile(userId: string): Promise<User | null> {
     .from('user_roles')
     .select('role')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
 
   return {
     id: userId,
@@ -85,9 +84,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [pendingFaculty, setPendingFaculty] = useState<User[]>([]);
 
   const refreshUsers = useCallback(async () => {
-    // Only admins need this data
-    if (!user || user.role !== 'admin') return;
-
     const { data: profiles } = await supabase.from('profiles').select('*');
     const { data: roles } = await supabase.from('user_roles').select('*');
 
@@ -111,24 +107,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        const profile = await fetchUserProfile(session.user.id);
-        setUser(profile);
+        fetchUserProfile(session.user.id).then(profile => {
+          setUser(profile);
+          setLoading(false);
+        });
       } else {
-        setUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    // Then check existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        const profile = await fetchUserProfile(session.user.id);
-        setUser(profile);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+      if (session?.user) {
+        (async () => {
+          const profile = await fetchUserProfile(session.user.id);
+          setUser(profile);
+          setLoading(false);
+        })();
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -178,7 +180,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (data.user) {
       const profile = await fetchUserProfile(data.user.id);
-      if (profile && !profile.approved) {
+      if (!profile) {
+        await supabase.auth.signOut();
+        return { success: false, error: 'Profile not found. Please contact admin.' };
+      }
+      if (!profile.approved) {
         await supabase.auth.signOut();
         return { success: false, pendingApproval: true };
       }
