@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       profiles: {
         Row: {
+          approved: boolean
           branches: Database["public"]["Enums"]["app_branch"][] | null
           created_at: string
           department: string | null
@@ -27,6 +28,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          approved?: boolean
           branches?: Database["public"]["Enums"]["app_branch"][] | null
           created_at?: string
           department?: string | null
@@ -38,6 +40,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          approved?: boolean
           branches?: Database["public"]["Enums"]["app_branch"][] | null
           created_at?: string
           department?: string | null
