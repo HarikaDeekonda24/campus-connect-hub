@@ -7,13 +7,107 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
+      attendance_requests: {
+        Row: {
+          id: string
+          student_id: string
+          event_id: string
+          student_name: string
+          roll_number: string
+          branch: Database["public"]["Enums"]["app_branch"]
+          department: string
+          proof: string
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          student_id: string
+          event_id: string
+          student_name: string
+          roll_number: string
+          branch: Database["public"]["Enums"]["app_branch"]
+          department: string
+          proof: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          student_id?: string
+          event_id?: string
+          student_name?: string
+          roll_number?: string
+          branch?: Database["public"]["Enums"]["app_branch"]
+          department?: string
+          proof?: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          date: string
+          time: string
+          venue: string
+          organizer: string
+          category: string
+          status: string
+          branch: Database["public"]["Enums"]["app_branch"] | null
+          registration_link: string | null
+          featured: boolean
+          submitted_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string
+          date: string
+          time?: string
+          venue?: string
+          organizer?: string
+          category?: string
+          status?: string
+          branch?: Database["public"]["Enums"]["app_branch"] | null
+          registration_link?: string | null
+          featured?: boolean
+          submitted_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string
+          date?: string
+          time?: string
+          venue?: string
+          organizer?: string
+          category?: string
+          status?: string
+          branch?: Database["public"]["Enums"]["app_branch"] | null
+          registration_link?: string | null
+          featured?: boolean
+          submitted_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           approved: boolean
