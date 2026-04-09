@@ -27,10 +27,10 @@ async function fetchAllUsers(): Promise<UserRow[]> {
   if (!profilesRes.data || !rolesRes.data) return [];
   const roleMap = new Map(rolesRes.data.map(r => [r.user_id, r.role as UserRole]));
   return profilesRes.data.map(p => ({
-    id: p.user_id,
+    id: p.id,
     name: p.name,
     email: p.email,
-    role: roleMap.get(p.user_id) || 'student',
+    role: roleMap.get(p.id) || 'student',
     department: p.department || 'General',
     branches: (p.branches as Branch[]) || [],
     rollNumber: p.roll_number || undefined,

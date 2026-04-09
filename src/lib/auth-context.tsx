@@ -51,12 +51,12 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 async function fetchUserProfile(userId: string): Promise<{ user: User | null; error?: string }> {
-  console.log('[fetchUserProfile] querying profiles for user_id:', userId);
+  console.log('[fetchUserProfile] querying profiles for id:', userId);
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('*')
-    .eq('user_id', userId)
+    .eq('id', userId)
     .maybeSingle();
 
   console.log('[fetchUserProfile] profiles result:', { profile, profileError });
@@ -66,7 +66,7 @@ async function fetchUserProfile(userId: string): Promise<{ user: User | null; er
   }
 
   if (!profile) {
-    return { user: null, error: `No profile row found for user_id = ${userId}` };
+    return { user: null, error: `No profile row found for id = ${userId}` };
   }
 
   const { data: roleData, error: roleError } = await supabase
@@ -106,10 +106,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const roleMap = new Map(roles.map(r => [r.user_id, r.role as UserRole]));
 
     const allUsers: User[] = profiles.map(p => ({
-      id: p.user_id,
+      id: p.id,
       name: p.name,
       email: p.email,
-      role: roleMap.get(p.user_id) || 'student',
+      role: roleMap.get(p.id) || 'student',
       department: p.department || 'General',
       branches: (p.branches as Branch[]) || [],
       rollNumber: p.roll_number || undefined,
@@ -218,14 +218,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const approveFaculty = useCallback(async (userId: string) => {
-    await supabase.from('profiles').update({ approved: true }).eq('user_id', userId);
+    await supabase.from('profiles').update({ approved: true }).eq('id', userId);
     await refreshUsers();
   }, [refreshUsers]);
 
   const rejectFaculty = useCallback(async (userId: string) => {
-    // Delete the user's profile and role, then remove from auth
+    // Delete the user's role first, then their profile
     await supabase.from('user_roles').delete().eq('user_id', userId);
-    await supabase.from('profiles').delete().eq('user_id', userId);
+    await supabase.from('profiles').delete().eq('id', userId);
     await refreshUsers();
   }, [refreshUsers]);
 
