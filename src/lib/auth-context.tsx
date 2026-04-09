@@ -50,30 +50,44 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-async function fetchUserProfile(userId: string): Promise<User | null> {
-  const { data: profile } = await supabase
+async function fetchUserProfile(userId: string): Promise<{ user: User | null; error?: string }> {
+  console.log('[fetchUserProfile] querying profiles for user_id:', userId);
+
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('*')
     .eq('user_id', userId)
     .maybeSingle();
 
-  if (!profile) return null;
+  console.log('[fetchUserProfile] profiles result:', { profile, profileError });
 
-  const { data: roleData } = await supabase
+  if (profileError) {
+    return { user: null, error: `Profiles query error: ${profileError.message} (code: ${profileError.code})` };
+  }
+
+  if (!profile) {
+    return { user: null, error: `No profile row found for user_id = ${userId}` };
+  }
+
+  const { data: roleData, error: roleError } = await supabase
     .from('user_roles')
     .select('role')
     .eq('user_id', userId)
     .maybeSingle();
 
+  console.log('[fetchUserProfile] user_roles result:', { roleData, roleError });
+
   return {
-    id: userId,
-    name: profile.name,
-    email: profile.email,
-    role: (roleData?.role as UserRole) || 'student',
-    department: profile.department || 'General',
-    branches: (profile.branches as Branch[]) || [],
-    rollNumber: profile.roll_number || undefined,
-    approved: profile.approved,
+    user: {
+      id: userId,
+      name: profile.name,
+      email: profile.email,
+      role: (roleData?.role as UserRole) || 'student',
+      department: profile.department || 'General',
+      branches: (profile.branches as Branch[]) || [],
+      rollNumber: profile.roll_number || undefined,
+      approved: profile.approved,
+    },
   };
 }
 
@@ -109,8 +123,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        fetchUserProfile(session.user.id).then(profile => {
-          setUser(profile);
+        fetchUserProfile(session.user.id).then(({ user }) => {
+          setUser(user);
           setLoading(false);
         });
       } else {
@@ -126,8 +140,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       if (session?.user) {
         (async () => {
-          const profile = await fetchUserProfile(session.user.id);
-          setUser(profile);
+          const { user } = await fetchUserProfile(session.user.id);
+          setUser(user);
           setLoading(false);
         })();
       }
@@ -179,10 +193,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) return { success: false, error: error.message };
 
     if (data.user) {
-      const profile = await fetchUserProfile(data.user.id);
+      console.log('[login] Authenticated user.id:', data.user.id, 'email:', data.user.email);
+      const { user: profile, error: profileError } = await fetchUserProfile(data.user.id);
       if (!profile) {
         await supabase.auth.signOut();
-        return { success: false, error: 'Profile not found. Please contact admin.' };
+        const msg = profileError || 'Profile not found. Please contact admin.';
+        console.error('[login] Profile fetch failed:', msg);
+        return { success: false, error: msg };
       }
       if (!profile.approved) {
         await supabase.auth.signOut();
