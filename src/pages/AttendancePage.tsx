@@ -23,6 +23,8 @@ export default function AttendancePage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
+    student_name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
+    roll_number: user?.rollNumber || '',
     event_id: '',
     proof: '',
   });
@@ -64,8 +66,8 @@ export default function AttendancePage() {
     const payload = {
       student_id: user.id,
       event_id: form.event_id,
-      student_name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
-      roll_number: user.rollNumber || '',
+      student_name: form.student_name || user.email,
+      roll_number: form.roll_number,
       branch: (userBranch || 'CSE') as any,
       department: userBranch || 'CSE',
       proof: form.proof,
@@ -84,7 +86,7 @@ export default function AttendancePage() {
     }
 
     toast.success('Attendance request submitted!', { description: `Request for "${selectedEvent?.title}" sent to your HOD.` });
-    setForm({ event_id: '', proof: '' });
+    setForm(prev => ({ ...prev, event_id: '', proof: '' }));
     fetchRequests();
   };
 
@@ -133,20 +135,24 @@ export default function AttendancePage() {
           <h2 className="font-display text-foreground">New Request</h2>
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-foreground mb-1.5 block">Student Name</label>
+              <label className="text-sm font-medium text-foreground mb-1.5 block">Student Name *</label>
               <input
-                value={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.email || ''}
+                required
+                value={form.student_name}
+                onChange={e => setForm(prev => ({ ...prev, student_name: e.target.value }))}
+                placeholder="Your full name"
                 className="campus-input"
-                readOnly
                 data-testid="input-student-name"
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-foreground mb-1.5 block">Roll Number</label>
+              <label className="text-sm font-medium text-foreground mb-1.5 block">Roll Number *</label>
               <input
-                value={user?.rollNumber || ''}
+                required
+                value={form.roll_number}
+                onChange={e => setForm(prev => ({ ...prev, roll_number: e.target.value }))}
+                placeholder="e.g. 21A91A0501"
                 className="campus-input"
-                readOnly
                 data-testid="input-roll-number"
               />
             </div>
