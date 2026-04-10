@@ -153,7 +153,7 @@ export default function HODDashboard() {
                   <div className="min-w-0 flex-1">
                     <h3 className="font-medium text-foreground truncate">{event.title}</h3>
                     <p className="text-xs text-muted-foreground">
-                      {event.date} · {event.venue}{event.branch ? ` · ${event.branch}` : ''}
+                      {event.date}{event.location ? ` · ${event.location}` : ''}{event.branch ? ` · ${event.branch}` : ''}
                     </p>
                   </div>
                   {event.branch && <span className="campus-badge-navy flex-shrink-0">{event.branch}</span>}
@@ -191,7 +191,6 @@ export default function HODDashboard() {
                     <div className="flex-1">
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="campus-badge-gold capitalize">{event.category?.replace('-', ' ')}</span>
                           {event.branch && <span className="campus-badge-navy">{event.branch}</span>}
                         </div>
                         <span className="campus-badge bg-warning/10 text-warning flex-shrink-0">Pending</span>
@@ -199,9 +198,8 @@ export default function HODDashboard() {
                       <h3 className="text-base font-medium text-foreground">{event.title}</h3>
                       <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{event.description}</p>
                       <div className="flex flex-wrap gap-4 mt-2 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{event.date} at {event.time}</span>
-                        <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{event.venue}</span>
-                        <span className="flex items-center gap-1"><User className="w-3 h-3" />{event.organizer}</span>
+                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{event.date}{event.time ? ` at ${event.time}` : ''}</span>
+                        {event.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{event.location}</span>}
                       </div>
                       <div className="flex gap-2 mt-3">
                         <button

@@ -58,53 +58,38 @@ export type Database = {
         Row: {
           id: string
           title: string
-          description: string
+          description: string | null
           date: string
-          time: string
-          venue: string
-          organizer: string
-          category: string
-          status: string
+          time: string | null
+          location: string | null
           branch: Database["public"]["Enums"]["app_branch"] | null
-          registration_link: string | null
-          featured: boolean
-          submitted_by: string | null
+          status: string
+          created_by: string | null
           created_at: string
-          updated_at: string
         }
         Insert: {
           id?: string
           title: string
-          description?: string
+          description?: string | null
           date: string
-          time?: string
-          venue?: string
-          organizer?: string
-          category?: string
-          status?: string
+          time?: string | null
+          location?: string | null
           branch?: Database["public"]["Enums"]["app_branch"] | null
-          registration_link?: string | null
-          featured?: boolean
-          submitted_by?: string | null
+          status?: string
+          created_by?: string | null
           created_at?: string
-          updated_at?: string
         }
         Update: {
           id?: string
           title?: string
-          description?: string
+          description?: string | null
           date?: string
-          time?: string
-          venue?: string
-          organizer?: string
-          category?: string
-          status?: string
+          time?: string | null
+          location?: string | null
           branch?: Database["public"]["Enums"]["app_branch"] | null
-          registration_link?: string | null
-          featured?: boolean
-          submitted_by?: string | null
+          status?: string
+          created_by?: string | null
           created_at?: string
-          updated_at?: string
         }
         Relationships: []
       }

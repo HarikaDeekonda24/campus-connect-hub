@@ -199,7 +199,7 @@ export default function FacultyDashboard() {
               </div>
               <div className="min-w-0 flex-1">
                 <h3 className="font-medium text-foreground truncate">{event.title}</h3>
-                <p className="text-xs text-muted-foreground">{event.date} &middot; {event.venue}{event.branch ? ` · ${event.branch}` : ''}</p>
+                <p className="text-xs text-muted-foreground">{event.date}{event.location ? ` · ${event.location}` : ''}{event.branch ? ` · ${event.branch}` : ''}</p>
               </div>
               {event.branch && <span className="campus-badge-navy flex-shrink-0">{event.branch}</span>}
             </div>

@@ -214,16 +214,14 @@ export default function StudentDashboard() {
                   <div className="campus-card overflow-hidden flex flex-col h-full">
                     <div className="h-36 campus-gradient relative flex items-center justify-center flex-shrink-0">
                       <Zap className="w-12 h-12 text-gold/20" />
-                      <span className="campus-badge-gold absolute top-3 left-3 capitalize">{event.category.replace('-', ' ')}</span>
                       {event.branch && <span className="campus-badge-navy absolute top-3 right-3">{event.branch}</span>}
                     </div>
                     <div className="p-4 flex flex-col flex-1">
                       <h3 className="font-medium text-foreground">{event.title}</h3>
                       <p className="text-xs text-muted-foreground mt-1 line-clamp-2 flex-1">{event.description}</p>
                       <div className="flex flex-col gap-1 mt-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1.5"><Calendar className="w-3 h-3" />{event.date} at {event.time}</span>
-                        <span className="flex items-center gap-1.5"><MapPin className="w-3 h-3" />{event.venue}</span>
-                        <span className="flex items-center gap-1.5"><User className="w-3 h-3" />{event.organizer}</span>
+                        <span className="flex items-center gap-1.5"><Calendar className="w-3 h-3" />{event.date}{event.time ? ` at ${event.time}` : ''}</span>
+                        {event.location && <span className="flex items-center gap-1.5"><MapPin className="w-3 h-3" />{event.location}</span>}
                       </div>
                       <button
                         onClick={() => !alreadyRequested && setSelectedEvent(event)}
