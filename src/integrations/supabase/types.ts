@@ -7,6 +7,8 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -14,118 +16,150 @@ export type Database = {
     Tables: {
       attendance_requests: {
         Row: {
-          id: string
-          student_id: string
-          event_id: string
-          student_name: string
-          roll_number: string
           branch: Database["public"]["Enums"]["app_branch"]
-          department: string
-          proof: string
-          status: string
           created_at: string
+          department: string
+          event_id: string | null
+          id: string
+          proof: string
+          roll_number: string
+          status: string
+          student_id: string
+          student_name: string
           updated_at: string
         }
         Insert: {
-          id?: string
-          student_id: string
-          event_id: string
-          student_name: string
-          roll_number: string
           branch: Database["public"]["Enums"]["app_branch"]
-          department: string
-          proof: string
-          status?: string
           created_at?: string
+          department: string
+          event_id?: string | null
+          id?: string
+          proof: string
+          roll_number: string
+          status?: string
+          student_id: string
+          student_name: string
           updated_at?: string
         }
         Update: {
-          id?: string
-          student_id?: string
-          event_id?: string
-          student_name?: string
-          roll_number?: string
           branch?: Database["public"]["Enums"]["app_branch"]
-          department?: string
-          proof?: string
-          status?: string
           created_at?: string
+          department?: string
+          event_id?: string | null
+          id?: string
+          proof?: string
+          roll_number?: string
+          status?: string
+          student_id?: string
+          student_name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "attendance_requests_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       events: {
         Row: {
-          id: string
-          title: string
-          description: string | null
-          date: string
-          time: string | null
-          location: string | null
           branch: Database["public"]["Enums"]["app_branch"] | null
-          status: string
-          created_by: string | null
           created_at: string
+          created_by: string | null
+          date: string
+          description: string | null
+          id: string
+          location: string | null
+          status: string
+          time: string | null
+          title: string
+          updated_at: string
         }
         Insert: {
-          id?: string
-          title: string
-          description?: string | null
-          date: string
-          time?: string | null
-          location?: string | null
           branch?: Database["public"]["Enums"]["app_branch"] | null
-          status?: string
-          created_by?: string | null
           created_at?: string
+          created_by?: string | null
+          date: string
+          description?: string | null
+          id?: string
+          location?: string | null
+          status?: string
+          time?: string | null
+          title: string
+          updated_at?: string
         }
         Update: {
-          id?: string
-          title?: string
-          description?: string | null
-          date?: string
-          time?: string | null
-          location?: string | null
           branch?: Database["public"]["Enums"]["app_branch"] | null
-          status?: string
-          created_by?: string | null
           created_at?: string
+          created_by?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          location?: string | null
+          status?: string
+          time?: string | null
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
       profiles: {
         Row: {
-          id: string
-          first_name: string
-          last_name: string | null
-          role: Database["public"]["Enums"]["app_role"]
-          branch: Database["public"]["Enums"]["app_branch"] | null
-          roll_number: string | null
-          section: string | null
-          is_approved: boolean
+          approved: boolean
+          branches: Database["public"]["Enums"]["app_branch"][] | null
           created_at: string
+          department: string | null
+          email: string
+          id: string
+          name: string
+          roll_number: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved?: boolean
+          branches?: Database["public"]["Enums"]["app_branch"][] | null
+          created_at?: string
+          department?: string | null
+          email: string
+          id?: string
+          name: string
+          roll_number?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved?: boolean
+          branches?: Database["public"]["Enums"]["app_branch"][] | null
+          created_at?: string
+          department?: string | null
+          email?: string
+          id?: string
+          name?: string
+          roll_number?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
         }
         Insert: {
           id?: string
-          first_name: string
-          last_name?: string | null
-          role?: Database["public"]["Enums"]["app_role"]
-          branch?: Database["public"]["Enums"]["app_branch"] | null
-          roll_number?: string | null
-          section?: string | null
-          is_approved?: boolean
-          created_at?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
         }
         Update: {
           id?: string
-          first_name?: string
-          last_name?: string | null
           role?: Database["public"]["Enums"]["app_role"]
-          branch?: Database["public"]["Enums"]["app_branch"] | null
-          roll_number?: string | null
-          section?: string | null
-          is_approved?: boolean
-          created_at?: string
+          user_id?: string
         }
         Relationships: []
       }
