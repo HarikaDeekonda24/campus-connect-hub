@@ -23,7 +23,7 @@ export default function AttendancePage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
-    student_name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
+    student_name: user?.name || '',
     roll_number: user?.rollNumber || '',
     event_id: '',
     proof: '',
