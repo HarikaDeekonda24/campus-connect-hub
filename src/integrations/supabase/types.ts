@@ -14,6 +14,98 @@ export type Database = {
   }
   public: {
     Tables: {
+      attendance_requests: {
+        Row: {
+          branch: Database["public"]["Enums"]["app_branch"]
+          created_at: string
+          department: string
+          event_id: string | null
+          id: string
+          proof: string
+          roll_number: string
+          status: string
+          student_id: string
+          student_name: string
+          updated_at: string
+        }
+        Insert: {
+          branch: Database["public"]["Enums"]["app_branch"]
+          created_at?: string
+          department: string
+          event_id?: string | null
+          id?: string
+          proof: string
+          roll_number: string
+          status?: string
+          student_id: string
+          student_name: string
+          updated_at?: string
+        }
+        Update: {
+          branch?: Database["public"]["Enums"]["app_branch"]
+          created_at?: string
+          department?: string
+          event_id?: string | null
+          id?: string
+          proof?: string
+          roll_number?: string
+          status?: string
+          student_id?: string
+          student_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_requests_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          branch: Database["public"]["Enums"]["app_branch"] | null
+          created_at: string
+          created_by: string | null
+          date: string
+          description: string | null
+          id: string
+          location: string | null
+          status: string
+          time: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          branch?: Database["public"]["Enums"]["app_branch"] | null
+          created_at?: string
+          created_by?: string | null
+          date: string
+          description?: string | null
+          id?: string
+          location?: string | null
+          status?: string
+          time?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          branch?: Database["public"]["Enums"]["app_branch"] | null
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          location?: string | null
+          status?: string
+          time?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           approved: boolean
