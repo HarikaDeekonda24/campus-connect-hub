@@ -24,8 +24,10 @@ interface RegisterData {
   role: 'student' | 'faculty';
   branches: Branch[];
   rollNumber?: string;
+  section?: string;
   password: string;
 }
+
 
 interface CreateHODData {
   name: string;
@@ -168,6 +170,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           department,
           branches: data.branches,
           roll_number: data.role === 'student' ? data.rollNumber : null,
+          phone: data.phone,
+          section: data.role === 'student' ? data.section : null,
         },
       },
     });
