@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Users, Calendar, Shield, AlertCircle, UserPlus, CheckCircle, XCircle, Search } from 'lucide-react';
-import { useAuth, ALL_BRANCHES, Branch, UserRole } from '@/lib/auth-context';
+import { useAuth } from '@/lib/auth-context';
+import { ALL_BRANCHES, Branch, UserRole } from '@/lib/campus-types';
 import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';

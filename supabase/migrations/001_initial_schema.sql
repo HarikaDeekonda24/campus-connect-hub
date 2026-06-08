@@ -85,6 +85,9 @@ CREATE POLICY "hod_invites_select" ON public.hod_invites FOR SELECT TO authentic
 CREATE POLICY "hod_invites_insert" ON public.hod_invites FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "hod_invites_delete" ON public.hod_invites FOR DELETE TO authenticated USING (true);
 
+-- Add approved column if running against an existing table
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS approved BOOLEAN NOT NULL DEFAULT true;
+
 -- ============================================================
 -- SEED DATA — sample approved events
 -- ============================================================

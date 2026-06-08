@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useAuth, ALL_BRANCHES, Branch } from '@/lib/auth-context';
+import { useAuth } from '@/lib/auth-context';
+import { ALL_BRANCHES, Branch } from '@/lib/campus-types';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Check, X } from 'lucide-react';
 import { motion } from 'framer-motion';

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Calendar, MapPin, GitBranch, FileText, Clock } from 'lucide-react';
-import { useAuth, ALL_BRANCHES, Branch } from '@/lib/auth-context';
+import { useAuth } from '@/lib/auth-context';
+import { ALL_BRANCHES, Branch } from '@/lib/campus-types';
 import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';

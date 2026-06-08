@@ -1,20 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-
-export type UserRole = 'student' | 'faculty' | 'hod' | 'admin';
-export type Branch = 'CSE' | 'CSM' | 'CSD' | 'ECE' | 'IT' | 'EVM' | 'EEE';
-export const ALL_BRANCHES: Branch[] = ['CSE', 'CSM', 'CSD', 'ECE', 'IT', 'EVM', 'EEE'];
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  department: string;
-  branches: Branch[];
-  rollNumber?: string;
-  approved: boolean;
-}
+import type { UserRole, Branch, User } from '@/lib/campus-types';
 
 interface RegisterData {
   firstName: string;
@@ -130,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const role: UserRole = isHodInvite ? 'hod' : data.role;
       const branches: Branch[] = isHodInvite ? (invite.branches as Branch[]) : data.branches;
       const department = branches[0] || 'General';
-      const approved = role === 'faculty' ? false : true;
+      const approved = true;
 
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: data.email,
@@ -160,7 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await supabase.from('hod_invites').delete().eq('email', data.email);
       }
 
-      return { success: true, pendingApproval: !approved };
+      return { success: true };
     } catch (err: any) {
       return { success: false, error: err.message || 'Registration failed' };
     }
@@ -174,11 +160,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const profile = await loadProfile(data.user.id);
       if (!profile) return { success: false, error: 'Account profile not found. Please contact admin.' };
-
-      if (!profile.approved && profile.role !== 'student') {
-        await supabase.auth.signOut();
-        return { success: false, pendingApproval: true };
-      }
 
       setUser(profile);
       return { success: true, role: profile.role };
