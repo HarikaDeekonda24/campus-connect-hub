@@ -46,7 +46,7 @@ async function profileToUser(profile: any): Promise<User> {
     department: profile.department || 'General',
     branches: (profile.branches || []) as Branch[],
     rollNumber: profile.roll_number || undefined,
-    approved: profile.approved,
+    is_approved: profile.is_approved,
   };
 }
 
@@ -91,8 +91,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
     if (!data) return;
     const users = await Promise.all(data.map(profileToUser));
-    setRegisteredUsers(users.filter(u => u.approved));
-    setPendingFaculty(users.filter(u => !u.approved && u.role === 'faculty'));
+    setRegisteredUsers(users.filter(u => u.is_approved));
+    setPendingFaculty(users.filter(u => !u.is_approved && u.role === 'faculty'));
   }, []);
 
   useEffect(() => {
@@ -116,7 +116,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const role: UserRole = isHodInvite ? 'hod' : data.role;
       const branches: Branch[] = isHodInvite ? (invite.branches as Branch[]) : data.branches;
       const department = branches[0] || 'General';
-      const approved = true;
 
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: data.email,
@@ -136,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         roll_number: role === 'student' ? data.rollNumber || null : null,
         phone: data.phone || null,
         section: role === 'student' ? data.section || null : null,
-        approved,
+        is_approved: true,
       });
 
       if (profileError) return { success: false, error: profileError.message };
@@ -174,7 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const approveFaculty = useCallback(async (userId: string) => {
-    await supabase.from('profiles').update({ approved: true }).eq('id', userId);
+    await supabase.from('profiles').update({ is_approved: true }).eq('id', userId);
     await refreshUsers();
   }, [refreshUsers]);
 

@@ -10,5 +10,5 @@ export interface User {
   department: string;
   branches: Branch[];
   rollNumber?: string;
-  approved: boolean;
+  is_approved: boolean;
 }

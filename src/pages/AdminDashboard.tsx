@@ -10,7 +10,7 @@ type Tab = 'overview' | 'users' | 'pending';
 
 interface Profile {
   id: string; name: string; email: string; role: string;
-  branches: string[]; approved: boolean; created_at: string;
+  branches: string[]; is_approved: boolean; created_at: string;
 }
 
 export default function AdminDashboard() {
@@ -36,8 +36,8 @@ export default function AdminDashboard() {
     setLoading(false);
   };
 
-  const approvedUsers = allUsers.filter(u => u.approved);
-  const pendingFaculty = allUsers.filter(u => !u.approved && u.role === 'faculty');
+  const approvedUsers = allUsers.filter(u => u.is_approved);
+  const pendingFaculty = allUsers.filter(u => !u.is_approved && u.role === 'faculty');
 
   const filteredUsers = approvedUsers.filter(u => {
     const matchSearch = u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
@@ -45,7 +45,7 @@ export default function AdminDashboard() {
   });
 
   const handleApprove = async (id: string, name: string) => {
-    const { error } = await supabase.from('profiles').update({ approved: true }).eq('id', id);
+    const { error } = await supabase.from('profiles').update({ is_approved: true }).eq('id', id);
     if (error) toast.error(error.message);
     else { toast.success(`${name} approved as Faculty`); await loadUsers(); }
   };

@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   roll_number TEXT,
   phone      TEXT,
   section    TEXT,
-  approved   BOOLEAN NOT NULL DEFAULT true,
+  is_approved BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -86,7 +86,7 @@ CREATE POLICY "hod_invites_insert" ON public.hod_invites FOR INSERT TO authentic
 CREATE POLICY "hod_invites_delete" ON public.hod_invites FOR DELETE TO authenticated USING (true);
 
 -- Add approved column if running against an existing table
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS approved BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_approved BOOLEAN NOT NULL DEFAULT true;
 
 -- ============================================================
 -- SEED DATA — sample approved events
