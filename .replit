@@ -63,5 +63,5 @@ externalPort = 80
 [userenv]
 
 [userenv.shared]
-VITE_SUPABASE_URL = "https://wabqyigzfrenlhyjwgtz.supabase.co"
-VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vZfFP2gxL86WOV_I0kvS-A_SwL0m5sD"
+VITE_SUPABASE_URL = "https://ezxapnbkcvzdkpdklujy.supabase.co"
+VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_hSrCENlOYkwJpua6wqhzYA_C8ov5hdl"
