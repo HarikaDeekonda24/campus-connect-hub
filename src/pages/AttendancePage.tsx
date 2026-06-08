@@ -1,13 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { supabase } from '@/integrations/supabase/client';
-import { Tables } from '@/integrations/supabase/types';
+import { apiFetch } from '@/lib/api';
+import type { AttendanceRequest, Event } from '../../shared/schema';
 import { ClipboardCheck, Clock, CheckCircle, XCircle, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-
-type AttendanceRequest = Tables<'attendance_requests'>;
-type Event = Tables<'events'>;
 
 export default function AttendancePage() {
   const { user } = useAuth();
@@ -35,25 +32,14 @@ export default function AttendancePage() {
   }, []);
 
   const fetchEvents = async () => {
-    const { data } = await supabase
-      .from('events')
-      .select('*')
-      .eq('status', 'approved')
-      .order('date', { ascending: true });
-    if (data) setEvents(data);
+    const { events } = await apiFetch('/events').catch(() => ({ events: [] }));
+    setEvents(events || []);
   };
 
   const fetchRequests = async () => {
     setLoadingRequests(true);
-    let query = supabase.from('attendance_requests').select('*').order('created_at', { ascending: false });
-    if (isStudent && user?.id) {
-      query = query.eq('student_id', user.id);
-    } else if (isHod && userBranch) {
-      query = query.eq('branch', userBranch as any);
-    }
-    const { data, error } = await query;
-    console.log('[AttendancePage] fetchRequests result:', data, 'error:', error);
-    if (data) setRequests(data);
+    const { requests } = await apiFetch('/attendance').catch(() => ({ requests: [] }));
+    setRequests(requests || []);
     setLoadingRequests(false);
   };
 
@@ -63,47 +49,43 @@ export default function AttendancePage() {
     if (!form.event_id) { toast.error('Please select an event'); return; }
 
     const selectedEvent = events.find(ev => ev.id === form.event_id);
-    const payload = {
-      student_id: user.id,
-      event_id: form.event_id,
-      student_name: form.student_name || user.email,
-      roll_number: form.roll_number,
-      branch: (userBranch || 'CSE') as any,
-      department: userBranch || 'CSE',
-      proof: form.proof,
-      status: 'pending',
-    };
-
-    console.log('[AttendancePage] submitting payload:', payload);
     setSubmitting(true);
-    const { data, error } = await supabase.from('attendance_requests').insert(payload).select().single();
-    console.log('[AttendancePage] insert result:', data, 'error:', error);
-    setSubmitting(false);
-
-    if (error) {
-      toast.error(`Submission failed: ${error.message}`);
-      return;
+    try {
+      await apiFetch('/attendance', {
+        method: 'POST',
+        body: JSON.stringify({
+          eventId: form.event_id,
+          studentName: form.student_name || user.name,
+          rollNumber: form.roll_number,
+          branch: userBranch || 'CSE',
+          department: userBranch || 'CSE',
+          proof: form.proof,
+        }),
+      });
+      toast.success('Attendance request submitted!', { description: `Request for "${selectedEvent?.title}" sent to your HOD.` });
+      setForm(prev => ({ ...prev, event_id: '', proof: '' }));
+      fetchRequests();
+    } catch (err: any) {
+      toast.error(`Submission failed: ${err.message}`);
+    } finally {
+      setSubmitting(false);
     }
-
-    toast.success('Attendance request submitted!', { description: `Request for "${selectedEvent?.title}" sent to your HOD.` });
-    setForm(prev => ({ ...prev, event_id: '', proof: '' }));
-    fetchRequests();
   };
 
   const handleApprove = async (id: string) => {
-    const { error } = await supabase.from('attendance_requests').update({ status: 'approved' }).eq('id', id);
-    console.log('[AttendancePage] approve error:', error);
-    if (error) { toast.error('Failed to approve'); return; }
-    toast.success('Request approved');
-    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'approved' } : r));
+    try {
+      await apiFetch(`/attendance/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'approved' }) });
+      toast.success('Request approved');
+      setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'approved' } : r));
+    } catch { toast.error('Failed to approve'); }
   };
 
   const handleReject = async (id: string) => {
-    const { error } = await supabase.from('attendance_requests').update({ status: 'rejected' }).eq('id', id);
-    console.log('[AttendancePage] reject error:', error);
-    if (error) { toast.error('Failed to reject'); return; }
-    toast.info('Request rejected');
-    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'rejected' } : r));
+    try {
+      await apiFetch(`/attendance/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'rejected' }) });
+      toast.info('Request rejected');
+      setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'rejected' } : r));
+    } catch { toast.error('Failed to reject'); }
   };
 
   const statusIcon = (status: string) => {
@@ -239,9 +221,9 @@ export default function AttendancePage() {
                     <ClipboardCheck className="w-5 h-5 text-muted-foreground" />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-medium text-foreground text-sm truncate">{req.student_name}</p>
+                    <p className="font-medium text-foreground text-sm truncate">{req.studentName}</p>
                     <p className="text-xs text-muted-foreground">
-                      {req.roll_number} · {req.branch} · {req.department}
+                      {req.rollNumber} · {req.branch} · {req.department}
                     </p>
                     {req.proof && (
                       <p className="text-xs text-muted-foreground truncate max-w-xs">{req.proof}</p>

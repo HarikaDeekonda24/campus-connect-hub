@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
-import { FileText, ClipboardCheck, CheckCircle, XCircle, Calendar, MapPin, User, Shield } from 'lucide-react';
+import { FileText, ClipboardCheck, CheckCircle, XCircle, Calendar, MapPin, Shield } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { supabase } from '@/integrations/supabase/client';
-import { Tables } from '@/integrations/supabase/types';
+import { apiFetch } from '@/lib/api';
+import type { Event, AttendanceRequest } from '../../shared/schema';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
-type Event = Tables<'events'>;
-type AttendanceRequest = Tables<'attendance_requests'>;
 type Tab = 'overview' | 'approvals' | 'attendance';
 
 export default function HODDashboard() {
@@ -27,37 +25,39 @@ export default function HODDashboard() {
   const fetchData = async () => {
     setLoading(true);
     const [evtRes, pendingEvtRes, attRes] = await Promise.all([
-      supabase.from('events').select('*').eq('status', 'approved').order('date', { ascending: true }).limit(5),
-      supabase.from('events').select('*').eq('status', 'pending').order('created_at', { ascending: false }),
-      supabase.from('attendance_requests').select('*').order('created_at', { ascending: false }),
+      apiFetch('/events').catch(() => ({ events: [] })),
+      apiFetch('/events?status=pending').catch(() => ({ events: [] })),
+      apiFetch('/attendance').catch(() => ({ requests: [] })),
     ]);
-    if (evtRes.data) setUpcomingEvents(evtRes.data);
-    if (pendingEvtRes.data) setPendingEvents(pendingEvtRes.data);
-    if (attRes.data) {
-      setAttendanceRequests(attRes.data.filter(r => userBranches.includes(r.branch as any)));
-    }
+    setUpcomingEvents((evtRes.events || []).slice(0, 5));
+    setPendingEvents(pendingEvtRes.events || []);
+    const all: AttendanceRequest[] = attRes.requests || [];
+    setAttendanceRequests(all.filter(r => userBranches.includes(r.branch as any)));
     setLoading(false);
   };
 
   const approveEvent = async (id: string, title: string) => {
-    const { error } = await supabase.from('events').update({ status: 'approved' }).eq('id', id);
-    if (error) { toast.error('Failed to approve event'); return; }
-    toast.success(`"${title}" approved!`);
-    setPendingEvents(prev => prev.filter(e => e.id !== id));
+    try {
+      await apiFetch(`/events/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'approved' }) });
+      toast.success(`"${title}" approved!`);
+      setPendingEvents(prev => prev.filter(e => e.id !== id));
+    } catch { toast.error('Failed to approve event'); }
   };
 
   const rejectEvent = async (id: string, title: string) => {
-    const { error } = await supabase.from('events').update({ status: 'rejected' }).eq('id', id);
-    if (error) { toast.error('Failed to reject event'); return; }
-    toast.info(`"${title}" rejected`);
-    setPendingEvents(prev => prev.filter(e => e.id !== id));
+    try {
+      await apiFetch(`/events/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'rejected' }) });
+      toast.info(`"${title}" rejected`);
+      setPendingEvents(prev => prev.filter(e => e.id !== id));
+    } catch { toast.error('Failed to reject event'); }
   };
 
   const updateAttendance = async (id: string, status: 'approved' | 'rejected', studentName: string) => {
-    const { error } = await supabase.from('attendance_requests').update({ status }).eq('id', id);
-    if (error) { toast.error('Failed to update request'); return; }
-    toast.success(`${studentName}'s request ${status}`);
-    setAttendanceRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    try {
+      await apiFetch(`/attendance/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+      toast.success(`${studentName}'s request ${status}`);
+      setAttendanceRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    } catch { toast.error('Failed to update request'); }
   };
 
   const pendingAttendance = attendanceRequests.filter(r => r.status === 'pending');
@@ -94,13 +94,7 @@ export default function HODDashboard() {
           { label: 'Upcoming Events', value: upcomingEvents.length, icon: Calendar, color: 'text-success' },
           { label: 'Branches Managed', value: userBranches.length, icon: Shield, color: 'text-primary' },
         ].map((s, i) => (
-          <motion.div
-            key={s.label}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className="campus-card p-4"
-          >
+          <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="campus-card p-4">
             <div className="flex items-center justify-between">
               <s.icon className={`w-4 h-4 ${s.color}`} />
               <span className="text-2xl font-display text-foreground">{s.value}</span>
@@ -117,9 +111,7 @@ export default function HODDashboard() {
             onClick={() => setActiveTab(tab.key)}
             data-testid={`tab-${tab.key}`}
             className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === tab.key
-                ? 'border-primary text-foreground'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
+              activeTab === tab.key ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
             <tab.icon className="w-4 h-4" />
@@ -177,13 +169,7 @@ export default function HODDashboard() {
           ) : (
             <div className="space-y-4">
               {pendingEvents.map((event, i) => (
-                <motion.div
-                  key={event.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="campus-card p-5"
-                >
+                <motion.div key={event.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="campus-card p-5">
                   <div className="flex flex-col md:flex-row gap-4">
                     <div className="w-full md:w-28 h-24 rounded-lg campus-gradient flex items-center justify-center flex-shrink-0">
                       <Calendar className="w-8 h-8 text-gold/30" />
@@ -202,18 +188,10 @@ export default function HODDashboard() {
                         {event.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{event.location}</span>}
                       </div>
                       <div className="flex gap-2 mt-3">
-                        <button
-                          data-testid={`approve-event-${event.id}`}
-                          onClick={() => approveEvent(event.id, event.title)}
-                          className="px-4 py-1.5 rounded-lg bg-success/10 text-success text-sm font-medium hover:bg-success/20 transition-colors flex items-center gap-1.5"
-                        >
+                        <button data-testid={`approve-event-${event.id}`} onClick={() => approveEvent(event.id, event.title)} className="px-4 py-1.5 rounded-lg bg-success/10 text-success text-sm font-medium hover:bg-success/20 flex items-center gap-1.5">
                           <CheckCircle className="w-4 h-4" /> Approve
                         </button>
-                        <button
-                          data-testid={`reject-event-${event.id}`}
-                          onClick={() => rejectEvent(event.id, event.title)}
-                          className="px-4 py-1.5 rounded-lg bg-destructive/10 text-destructive text-sm font-medium hover:bg-destructive/20 transition-colors flex items-center gap-1.5"
-                        >
+                        <button data-testid={`reject-event-${event.id}`} onClick={() => rejectEvent(event.id, event.title)} className="px-4 py-1.5 rounded-lg bg-destructive/10 text-destructive text-sm font-medium hover:bg-destructive/20 flex items-center gap-1.5">
                           <XCircle className="w-4 h-4" /> Reject
                         </button>
                       </div>
@@ -228,9 +206,7 @@ export default function HODDashboard() {
 
       {activeTab === 'attendance' && (
         <div className="space-y-4">
-          <h2 className="text-lg font-display text-foreground">
-            Attendance Requests — {userBranches.join(', ')}
-          </h2>
+          <h2 className="text-lg font-display text-foreground">Attendance Requests — {userBranches.join(', ')}</h2>
           {loading ? (
             <p className="text-muted-foreground text-sm">Loading...</p>
           ) : attendanceRequests.length === 0 ? (
@@ -241,51 +217,31 @@ export default function HODDashboard() {
           ) : (
             <div className="space-y-3">
               {attendanceRequests.map((req, i) => (
-                <motion.div
-                  key={req.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="campus-card p-4"
-                >
+                <motion.div key={req.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="campus-card p-4">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center flex-shrink-0 text-sm font-semibold text-muted-foreground">
-                        {req.student_name.charAt(0)}
+                        {req.studentName.charAt(0)}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground">{req.student_name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {req.roll_number} · {req.branch} · {req.created_at?.slice(0, 10)}
-                        </p>
+                        <p className="text-sm font-medium text-foreground">{req.studentName}</p>
+                        <p className="text-xs text-muted-foreground">{req.rollNumber} · {req.branch} · {req.createdAt?.slice(0, 10)}</p>
                         <p className="text-xs text-muted-foreground mt-0.5 truncate">Proof: {req.proof}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {req.status === 'pending' ? (
                         <>
-                          <button
-                            data-testid={`approve-attendance-${req.id}`}
-                            onClick={() => updateAttendance(req.id, 'approved', req.student_name)}
-                            className="p-2 rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors"
-                            title="Approve"
-                          >
+                          <button data-testid={`approve-attendance-${req.id}`} onClick={() => updateAttendance(req.id, 'approved', req.studentName)} className="p-2 rounded-lg bg-success/10 text-success hover:bg-success/20" title="Approve">
                             <CheckCircle className="w-4 h-4" />
                           </button>
-                          <button
-                            data-testid={`reject-attendance-${req.id}`}
-                            onClick={() => updateAttendance(req.id, 'rejected', req.student_name)}
-                            className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
-                            title="Reject"
-                          >
+                          <button data-testid={`reject-attendance-${req.id}`} onClick={() => updateAttendance(req.id, 'rejected', req.studentName)} className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20" title="Reject">
                             <XCircle className="w-4 h-4" />
                           </button>
                         </>
                       ) : (
                         <span className={`campus-badge flex items-center gap-1 ${req.status === 'approved' ? 'campus-badge-success' : 'campus-badge-destructive'}`}>
-                          {req.status === 'approved'
-                            ? <CheckCircle className="w-3 h-3" />
-                            : <XCircle className="w-3 h-3" />}
+                          {req.status === 'approved' ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
                           <span className="capitalize">{req.status}</span>
                         </span>
                       )}

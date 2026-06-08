@@ -1,0 +1,1 @@
+- [GNITS migration stack](gnits-migration-stack.md) — Express+pg+session replaced Supabase; vitest blocked by security policy so removed from package.json.

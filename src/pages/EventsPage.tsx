@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Search, Calendar, MapPin, Grid3X3, List } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { Tables } from '@/integrations/supabase/types';
+import { apiFetch } from '@/lib/api';
+import type { Event } from '../../shared/schema';
 import { motion } from 'framer-motion';
-
-type Event = Tables<'events'>;
 
 export default function EventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
@@ -13,15 +11,10 @@ export default function EventsPage() {
   const [view, setView] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
-    supabase
-      .from('events')
-      .select('*')
-      .eq('status', 'approved')
-      .order('date', { ascending: true })
-      .then(({ data }) => {
-        if (data) setEvents(data);
-        setLoading(false);
-      });
+    apiFetch('/events')
+      .then(({ events }) => setEvents(events || []))
+      .catch(() => setEvents([]))
+      .finally(() => setLoading(false));
   }, []);
 
   const filtered = events.filter(e =>

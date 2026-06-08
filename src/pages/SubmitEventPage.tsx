@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Calendar, MapPin, GitBranch, FileText, Clock, X } from 'lucide-react';
+import { Calendar, MapPin, GitBranch, FileText, Clock } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { ALL_BRANCHES, Branch } from '@/lib/auth-context';
-import { supabase } from '@/integrations/supabase/client';
+import { apiFetch } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -33,36 +33,27 @@ export default function SubmitEventPage() {
     if (!user) { toast.error('You must be logged in to submit an event'); return; }
 
     setIsLoading(true);
-
-    const payload = {
-      title: form.title.trim(),
-      description: form.description.trim() || null,
-      date: form.date,
-      time: form.time || null,
-      location: form.location.trim() || null,
-      branch: branch as Branch,
-      status: 'pending',
-      created_by: user.id,
-    };
-
-    console.log('[SubmitEvent] Inserting event payload:', payload);
-
-    const { data, error } = await supabase.from('events').insert(payload).select().single();
-
-    console.log('[SubmitEvent] Insert result:', { data, error });
-
-    setIsLoading(false);
-
-    if (error) {
-      console.error('[SubmitEvent] Insert failed:', error);
-      toast.error(`Failed to submit event: ${error.message}`);
-      return;
+    try {
+      await apiFetch('/events', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: form.title.trim(),
+          description: form.description.trim() || null,
+          date: form.date,
+          time: form.time || null,
+          location: form.location.trim() || null,
+          branch,
+        }),
+      });
+      toast.success('Event submitted for approval!', {
+        description: 'The HOD will review your event before it goes live.',
+      });
+      navigate('/dashboard');
+    } catch (err: any) {
+      toast.error(`Failed to submit event: ${err.message}`);
+    } finally {
+      setIsLoading(false);
     }
-
-    toast.success('Event submitted for approval!', {
-      description: 'The HOD will review your event before it goes live.',
-    });
-    navigate('/dashboard');
   };
 
   return (
@@ -82,9 +73,7 @@ export default function SubmitEventPage() {
       >
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
-            <label className="text-sm font-medium text-foreground mb-1.5 block">
-              Event Title *
-            </label>
+            <label className="text-sm font-medium text-foreground mb-1.5 block">Event Title *</label>
             <input
               required
               data-testid="input-event-title"

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Bot, X, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
-import { supabase } from '@/integrations/supabase/client';
+import { apiFetch } from '@/lib/api';
 import { toast } from 'sonner';
 
 interface Message {
@@ -38,12 +38,12 @@ export function ChatbotFAB() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('gnits-chat', {
-        body: {
+      const data = await apiFetch('/chat', {
+        method: 'POST',
+        body: JSON.stringify({
           messages: next.map((m) => ({ role: m.role, content: m.content })),
-        },
+        }),
       });
-      if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setMessages((prev) => [
         ...prev,

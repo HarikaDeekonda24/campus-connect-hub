@@ -1,48 +1,19 @@
 import { useState, useEffect } from 'react';
 import { Users, Calendar, Shield, AlertCircle, UserPlus, CheckCircle, XCircle, Search } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { supabase } from '@/integrations/supabase/client';
+import { apiFetch } from '@/lib/api';
 import { ALL_BRANCHES, Branch, UserRole } from '@/lib/auth-context';
+import type { User } from '../../shared/schema';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
-interface UserRow {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  department: string;
-  branches: Branch[];
-  rollNumber?: string;
-  approved: boolean;
-}
-
 type Tab = 'overview' | 'users' | 'pending';
 
-async function fetchAllUsers(): Promise<UserRow[]> {
-  const [profilesRes, rolesRes] = await Promise.all([
-    supabase.from('profiles').select('*'),
-    supabase.from('user_roles').select('*'),
-  ]);
-  if (!profilesRes.data || !rolesRes.data) return [];
-  const roleMap = new Map(rolesRes.data.map(r => [r.user_id, r.role as UserRole]));
-  return profilesRes.data.map(p => ({
-    id: p.id,
-    name: p.name,
-    email: p.email,
-    role: roleMap.get(p.id) || 'student',
-    department: p.department || 'General',
-    branches: (p.branches as Branch[]) || [],
-    rollNumber: p.roll_number || undefined,
-    approved: p.approved,
-  }));
-}
-
 export default function AdminDashboard() {
-  const { user, approveFaculty, rejectFaculty, createHOD } = useAuth();
+  const { user, createHOD } = useAuth();
 
   const [activeTab, setActiveTab] = useState<Tab>('overview');
-  const [allUsers, setAllUsers] = useState<UserRow[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
@@ -58,8 +29,8 @@ export default function AdminDashboard() {
 
   const loadUsers = async () => {
     setLoading(true);
-    const users = await fetchAllUsers();
-    setAllUsers(users);
+    const { users } = await apiFetch('/users').catch(() => ({ users: [] }));
+    setAllUsers(users || []);
     setLoading(false);
   };
 
@@ -75,15 +46,19 @@ export default function AdminDashboard() {
   });
 
   const handleApprove = async (id: string, name: string) => {
-    await approveFaculty(id);
-    toast.success(`${name} approved as Faculty`);
-    await loadUsers();
+    try {
+      await apiFetch(`/users/${id}/approve`, { method: 'POST' });
+      toast.success(`${name} approved as Faculty`);
+      await loadUsers();
+    } catch (err: any) { toast.error(err.message); }
   };
 
   const handleReject = async (id: string, name: string) => {
-    await rejectFaculty(id);
-    toast.info(`${name}'s registration rejected`);
-    await loadUsers();
+    try {
+      await apiFetch(`/users/${id}`, { method: 'DELETE' });
+      toast.info(`${name}'s registration rejected`);
+      await loadUsers();
+    } catch (err: any) { toast.error(err.message); }
   };
 
   const toggleHodBranch = (b: Branch) =>
@@ -121,11 +96,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="campus-gradient rounded-2xl p-6 md:p-8 text-primary-foreground relative overflow-hidden"
-      >
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="campus-gradient rounded-2xl p-6 md:p-8 text-primary-foreground relative overflow-hidden">
         <div className="absolute right-0 top-0 w-40 h-40 rounded-full bg-gold/10 -translate-y-1/3 translate-x-1/4" />
         <div className="relative z-10">
           <p className="text-primary-foreground/60 text-sm">Admin Panel</p>
@@ -141,13 +112,7 @@ export default function AdminDashboard() {
           { label: 'HODs', value: approvedUsers.filter(u => u.role === 'hod').length, icon: Shield, color: 'text-success' },
           { label: 'Students', value: approvedUsers.filter(u => u.role === 'student').length, icon: Calendar, color: 'text-primary' },
         ].map((s, i) => (
-          <motion.div
-            key={s.label}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className="campus-card p-4"
-          >
+          <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="campus-card p-4">
             <div className="flex items-center justify-between">
               <s.icon className={`w-5 h-5 ${s.color}`} />
               <span className="text-2xl font-display text-foreground">{s.value}</span>
@@ -159,23 +124,11 @@ export default function AdminDashboard() {
 
       <div className="flex gap-1 border-b border-border overflow-x-auto">
         {tabs.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            data-testid={`admin-tab-${tab.key}`}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === tab.key
-                ? 'border-primary text-foreground'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} data-testid={`admin-tab-${tab.key}`}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.key ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
             <tab.icon className="w-4 h-4" />
             {tab.label}
-            {tab.badge > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold leading-none">
-                {tab.badge}
-              </span>
-            )}
+            {tab.badge > 0 && <span className="px-1.5 py-0.5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold leading-none">{tab.badge}</span>}
           </button>
         ))}
       </div>
@@ -189,46 +142,25 @@ export default function AdminDashboard() {
             <form onSubmit={handleCreateHOD} className="space-y-3">
               <div>
                 <label className="text-xs font-medium text-foreground mb-1 block">Full Name</label>
-                <input
-                  data-testid="input-hod-name"
-                  value={hodName}
-                  onChange={e => setHodName(e.target.value)}
-                  placeholder="Dr. Name"
-                  className="campus-input text-sm"
-                />
+                <input data-testid="input-hod-name" value={hodName} onChange={e => setHodName(e.target.value)} placeholder="Dr. Name" className="campus-input text-sm" />
               </div>
               <div>
                 <label className="text-xs font-medium text-foreground mb-1 block">College Email</label>
-                <input
-                  data-testid="input-hod-email"
-                  type="email"
-                  value={hodEmail}
-                  onChange={e => setHodEmail(e.target.value)}
-                  placeholder="name@gnits.ac.in"
-                  className="campus-input text-sm"
-                />
+                <input data-testid="input-hod-email" type="email" value={hodEmail} onChange={e => setHodEmail(e.target.value)} placeholder="name@gnits.ac.in" className="campus-input text-sm" />
               </div>
               <div>
                 <label className="text-xs font-medium text-foreground mb-1 block">Assign Branches</label>
                 <div className="flex flex-wrap gap-2 mt-1">
                   {ALL_BRANCHES.map(b => (
-                    <button
-                      key={b}
-                      type="button"
-                      onClick={() => toggleHodBranch(b)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${hodBranches.includes(b) ? 'campus-gradient text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-                    >
+                    <button key={b} type="button" onClick={() => toggleHodBranch(b)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${hodBranches.includes(b) ? 'campus-gradient text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
                       {b}
                     </button>
                   ))}
                 </div>
               </div>
               {hodError && <p className="text-destructive text-xs">{hodError}</p>}
-              <button
-                type="submit"
-                data-testid="button-create-hod"
-                className="w-full h-9 rounded-lg campus-gradient text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
-              >
+              <button type="submit" data-testid="button-create-hod" className="w-full h-9 rounded-lg campus-gradient text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity">
                 Create HOD
               </button>
             </form>
@@ -252,9 +184,7 @@ export default function AdminDashboard() {
             <div className="mt-4">
               <p className="text-xs text-muted-foreground mb-2">Branches</p>
               <div className="flex flex-wrap gap-1.5">
-                {ALL_BRANCHES.map(b => (
-                  <span key={b} className="campus-badge-navy">{b}</span>
-                ))}
+                {ALL_BRANCHES.map(b => <span key={b} className="campus-badge-navy">{b}</span>)}
               </div>
             </div>
           </motion.div>
@@ -266,21 +196,12 @@ export default function AdminDashboard() {
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                data-testid="input-search-users"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search by name or email..."
-                className="campus-input pl-9"
-              />
+              <input data-testid="input-search-users" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or email..." className="campus-input pl-9" />
             </div>
             <div className="flex gap-2 flex-wrap">
               {['all', 'student', 'faculty', 'hod', 'admin'].map(r => (
-                <button
-                  key={r}
-                  onClick={() => setRoleFilter(r)}
-                  className={`px-3 py-2 rounded-lg text-xs font-medium capitalize transition-colors ${roleFilter === r ? 'campus-gradient text-primary-foreground' : 'bg-card border text-foreground hover:bg-muted'}`}
-                >
+                <button key={r} onClick={() => setRoleFilter(r)}
+                  className={`px-3 py-2 rounded-lg text-xs font-medium capitalize transition-colors ${roleFilter === r ? 'campus-gradient text-primary-foreground' : 'bg-card border text-foreground hover:bg-muted'}`}>
                   {r === 'hod' ? 'HOD' : r}
                 </button>
               ))}
@@ -297,14 +218,8 @@ export default function AdminDashboard() {
           ) : (
             <div className="campus-card divide-y divide-border">
               {filteredUsers.map((u, i) => (
-                <motion.div
-                  key={u.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.03 }}
-                  className="flex items-center justify-between p-4"
-                  data-testid={`user-row-${u.id}`}
-                >
+                <motion.div key={u.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
+                  className="flex items-center justify-between p-4" data-testid={`user-row-${u.id}`}>
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 rounded-full campus-gradient flex items-center justify-center text-primary-foreground text-sm font-medium flex-shrink-0">
                       {u.name.charAt(0)}
@@ -312,12 +227,10 @@ export default function AdminDashboard() {
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{u.name}</p>
                       <p className="text-xs text-muted-foreground truncate">{u.email}</p>
-                      {u.branches.length > 0 && (
-                        <p className="text-xs text-muted-foreground">{u.branches.join(', ')}</p>
-                      )}
+                      {u.branches.length > 0 && <p className="text-xs text-muted-foreground">{u.branches.join(', ')}</p>}
                     </div>
                   </div>
-                  <span className={`campus-badge capitalize flex-shrink-0 ${roleBadge(u.role)}`}>
+                  <span className={`campus-badge capitalize flex-shrink-0 ${roleBadge(u.role as UserRole)}`}>
                     {u.role === 'hod' ? 'HOD' : u.role}
                   </span>
                 </motion.div>
@@ -340,14 +253,8 @@ export default function AdminDashboard() {
           ) : (
             <div className="campus-card divide-y divide-border">
               {pendingFaculty.map((f, i) => (
-                <motion.div
-                  key={f.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="flex items-center justify-between p-4"
-                  data-testid={`pending-faculty-${f.id}`}
-                >
+                <motion.div key={f.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                  className="flex items-center justify-between p-4" data-testid={`pending-faculty-${f.id}`}>
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 rounded-full bg-warning/20 flex items-center justify-center text-warning text-sm font-medium flex-shrink-0">
                       {f.name.charAt(0)}
@@ -355,26 +262,14 @@ export default function AdminDashboard() {
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground">{f.name}</p>
                       <p className="text-xs text-muted-foreground truncate">{f.email}</p>
-                      {f.branches.length > 0 && (
-                        <p className="text-xs text-muted-foreground">Branches: {f.branches.join(', ')}</p>
-                      )}
+                      {f.branches.length > 0 && <p className="text-xs text-muted-foreground">Branches: {f.branches.join(', ')}</p>}
                     </div>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
-                    <button
-                      data-testid={`approve-faculty-${f.id}`}
-                      onClick={() => handleApprove(f.id, f.name)}
-                      className="p-2 rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors"
-                      title="Approve"
-                    >
+                    <button data-testid={`approve-faculty-${f.id}`} onClick={() => handleApprove(f.id, f.name)} className="p-2 rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors" title="Approve">
                       <CheckCircle className="w-4 h-4" />
                     </button>
-                    <button
-                      data-testid={`reject-faculty-${f.id}`}
-                      onClick={() => handleReject(f.id, f.name)}
-                      className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
-                      title="Reject"
-                    >
+                    <button data-testid={`reject-faculty-${f.id}`} onClick={() => handleReject(f.id, f.name)} className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors" title="Reject">
                       <XCircle className="w-4 h-4" />
                     </button>
                   </div>

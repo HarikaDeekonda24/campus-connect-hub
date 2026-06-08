@@ -1,14 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Calendar, MapPin, User, ClipboardCheck, CirclePlus as PlusCircle, MessageSquare, Zap, Clock, CircleCheck as CheckCircle, Circle as XCircle, ChevronRight } from 'lucide-react';
+import { Calendar, MapPin, ClipboardCheck, CirclePlus as PlusCircle, MessageSquare, Zap, Clock, CircleCheck as CheckCircle, Circle as XCircle, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
-import { supabase } from '@/integrations/supabase/client';
-import { Tables } from '@/integrations/supabase/types';
+import { apiFetch } from '@/lib/api';
+import type { Event, AttendanceRequest } from '../../shared/schema';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-
-type Event = Tables<'events'>;
-type AttendanceRequest = Tables<'attendance_requests'>;
 
 interface AttendanceModalProps {
   event: Event;
@@ -72,58 +69,48 @@ export default function StudentDashboard() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   useEffect(() => {
-    fetchEvents();
-    fetchMyRequests();
-  }, []);
+    apiFetch('/events')
+      .then(({ events }) => setEvents(events || []))
+      .catch(() => setEvents([]))
+      .finally(() => setLoadingEvents(false));
 
-  const fetchEvents = async () => {
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .eq('status', 'approved')
-      .order('date', { ascending: true });
-    if (!error && data) setEvents(data);
-    setLoadingEvents(false);
-  };
-
-  const fetchMyRequests = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('attendance_requests')
-      .select('*')
-      .eq('student_id', user.id)
-      .order('created_at', { ascending: false });
-    if (data) setMyRequests(data);
-  };
+    if (user) {
+      apiFetch('/attendance')
+        .then(({ requests }) => setMyRequests(requests || []))
+        .catch(() => setMyRequests([]));
+    }
+  }, [user?.id]);
 
   const handleAttendanceRequest = async (proof: string) => {
     if (!selectedEvent || !user) return;
-    const alreadyRequested = myRequests.some(r => r.event_id === selectedEvent.id);
+    const alreadyRequested = myRequests.some(r => r.eventId === selectedEvent.id);
     if (alreadyRequested) {
       toast.error('You have already submitted a request for this event.');
       setSelectedEvent(null);
       return;
     }
-    const { error } = await supabase.from('attendance_requests').insert({
-      student_id: user.id,
-      event_id: selectedEvent.id,
-      student_name: user.name,
-      roll_number: user.rollNumber || '',
-      branch: (user.branches?.[0] || 'CSE') as any,
-      department: user.department || '',
-      proof,
-      status: 'pending',
-    });
-    if (error) {
-      toast.error('Failed to submit request. Please try again.');
-    } else {
+    try {
+      await apiFetch('/attendance', {
+        method: 'POST',
+        body: JSON.stringify({
+          eventId: selectedEvent.id,
+          studentName: user.name,
+          rollNumber: user.rollNumber || '',
+          branch: user.branches?.[0] || 'CSE',
+          department: user.department || '',
+          proof,
+        }),
+      });
       toast.success('Attendance request submitted!', { description: 'Your HOD will review it.' });
-      fetchMyRequests();
+      const { requests } = await apiFetch('/attendance');
+      setMyRequests(requests || []);
+    } catch (err: any) {
+      toast.error('Failed to submit request. Please try again.');
     }
     setSelectedEvent(null);
   };
 
-  const requestedEventIds = new Set(myRequests.map(r => r.event_id));
+  const requestedEventIds = new Set(myRequests.map(r => r.eventId).filter(Boolean));
 
   const statusBadge = (status: string) => {
     if (status === 'approved') return <span className="campus-badge-success flex items-center gap-1"><CheckCircle className="w-3 h-3" />Approved</span>;
@@ -143,7 +130,6 @@ export default function StudentDashboard() {
         )}
       </AnimatePresence>
 
-      {/* Welcome banner */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="campus-gradient rounded-2xl p-6 md:p-8 text-primary-foreground relative overflow-hidden">
         <div className="absolute right-0 top-0 w-48 h-48 rounded-full bg-gold/10 -translate-y-1/2 translate-x-1/4" />
         <div className="relative z-10">
@@ -158,7 +144,6 @@ export default function StudentDashboard() {
         </div>
       </motion.div>
 
-      {/* Quick actions */}
       <div>
         <h2 className="text-lg font-display text-foreground mb-3">Quick Actions</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
@@ -181,7 +166,6 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {/* Approved Events */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-display text-foreground">Upcoming Events</h2>
@@ -243,13 +227,12 @@ export default function StudentDashboard() {
         )}
       </div>
 
-      {/* My Attendance Requests */}
       {myRequests.length > 0 && (
         <div>
           <h2 className="text-lg font-display text-foreground mb-3">My Attendance Requests</h2>
           <div className="space-y-2">
             {myRequests.map(req => {
-              const event = events.find(e => e.id === req.event_id);
+              const event = events.find(e => e.id === req.eventId);
               return (
                 <div key={req.id} className="campus-card p-4 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3 min-w-0">
@@ -258,7 +241,7 @@ export default function StudentDashboard() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{event?.title || 'Event'}</p>
-                      <p className="text-xs text-muted-foreground">{req.created_at.slice(0, 10)}</p>
+                      <p className="text-xs text-muted-foreground">{req.createdAt?.slice(0, 10)}</p>
                     </div>
                   </div>
                   {statusBadge(req.status)}
@@ -269,7 +252,6 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: 'Approved Events', value: events.length, icon: Calendar },

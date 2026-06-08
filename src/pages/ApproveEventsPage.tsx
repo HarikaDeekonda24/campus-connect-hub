@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { supabase } from '@/integrations/supabase/client';
-import { Tables } from '@/integrations/supabase/types';
+import { apiFetch } from '@/lib/api';
+import type { Event } from '../../shared/schema';
 import { Calendar, MapPin, CheckCircle, XCircle, GitBranch } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-
-type Event = Tables<'events'>;
 
 export default function ApproveEventsPage() {
   const { user } = useAuth();
@@ -22,32 +20,29 @@ export default function ApproveEventsPage() {
 
   const fetchEvents = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('events')
-      .select('*')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false });
-    if (data) {
-      const filtered = isAdmin
-        ? data
-        : data.filter(e => e.branch && userBranches.includes(e.branch as any));
-      setEvents(filtered);
-    }
+    const { events } = await apiFetch('/events?status=pending').catch(() => ({ events: [] }));
+    const all: Event[] = events || [];
+    const filtered = isAdmin
+      ? all
+      : all.filter(e => e.branch && userBranches.includes(e.branch as any));
+    setEvents(filtered);
     setLoading(false);
   };
 
   const approve = async (id: string, title: string) => {
-    const { error } = await supabase.from('events').update({ status: 'approved' }).eq('id', id);
-    if (error) { toast.error('Failed to approve'); return; }
-    toast.success(`"${title}" approved!`);
-    setEvents(prev => prev.filter(e => e.id !== id));
+    try {
+      await apiFetch(`/events/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'approved' }) });
+      toast.success(`"${title}" approved!`);
+      setEvents(prev => prev.filter(e => e.id !== id));
+    } catch { toast.error('Failed to approve'); }
   };
 
   const reject = async (id: string, title: string) => {
-    const { error } = await supabase.from('events').update({ status: 'rejected' }).eq('id', id);
-    if (error) { toast.error('Failed to reject'); return; }
-    toast.info(`"${title}" rejected`);
-    setEvents(prev => prev.filter(e => e.id !== id));
+    try {
+      await apiFetch(`/events/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'rejected' }) });
+      toast.info(`"${title}" rejected`);
+      setEvents(prev => prev.filter(e => e.id !== id));
+    } catch { toast.error('Failed to reject'); }
   };
 
   return (

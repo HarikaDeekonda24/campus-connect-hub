@@ -1,14 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Calendar, ClipboardCheck, CircleCheck as CheckCircle, Circle as XCircle, Clock, Bell, Users, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { supabase } from '@/integrations/supabase/client';
-import { Tables } from '@/integrations/supabase/types';
+import { apiFetch } from '@/lib/api';
+import type { AttendanceRequest, Event } from '../../shared/schema';
 import { motion } from 'framer-motion';
-import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-
-type AttendanceRequest = Tables<'attendance_requests'>;
-type Event = Tables<'events'>;
 
 export default function FacultyDashboard() {
   const { user } = useAuth();
@@ -19,31 +15,17 @@ export default function FacultyDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchData();
+    Promise.all([
+      apiFetch('/attendance').catch(() => ({ requests: [] })),
+      apiFetch('/events').catch(() => ({ events: [] })),
+    ]).then(([attRes, evtRes]) => {
+      setRequests(attRes.requests || []);
+      setEvents((evtRes.events || []).slice(0, 5));
+      setLoading(false);
+    });
   }, []);
 
-  const fetchData = async () => {
-    const [reqRes, evtRes] = await Promise.all([
-      supabase
-        .from('attendance_requests')
-        .select('*')
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('events')
-        .select('*')
-        .eq('status', 'approved')
-        .order('date', { ascending: true })
-        .limit(5),
-    ]);
-    if (reqRes.data) setRequests(reqRes.data);
-    if (evtRes.data) setEvents(evtRes.data);
-    setLoading(false);
-  };
-
-  const branchRequests = requests.filter(r =>
-    userBranches.includes(r.branch as any)
-  );
-
+  const branchRequests = requests.filter(r => userBranches.includes(r.branch as any));
   const pending = branchRequests.filter(r => r.status === 'pending');
   const approved = branchRequests.filter(r => r.status === 'approved');
 
@@ -61,7 +43,6 @@ export default function FacultyDashboard() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Welcome */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="campus-gradient rounded-2xl p-6 md:p-8 text-primary-foreground relative overflow-hidden">
         <div className="absolute right-0 top-0 w-40 h-40 rounded-full bg-gold/10 -translate-y-1/3 translate-x-1/4" />
         <div className="relative z-10">
@@ -75,7 +56,6 @@ export default function FacultyDashboard() {
         </div>
       </motion.div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: 'Total Requests', value: branchRequests.length, icon: ClipboardCheck, color: 'text-info' },
@@ -93,7 +73,6 @@ export default function FacultyDashboard() {
         ))}
       </div>
 
-      {/* Students Needing Attendance */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-display text-foreground flex items-center gap-2">
@@ -125,19 +104,19 @@ export default function FacultyDashboard() {
         ) : (
           <div className="space-y-3">
             {pending.map((req, i) => {
-              const event = events.find(e => e.id === req.event_id);
+              const event = events.find(e => e.id === req.eventId);
               return (
                 <motion.div key={req.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} className="campus-card p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3 min-w-0">
                       <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-warning text-sm font-semibold">{req.student_name.charAt(0)}</span>
+                        <span className="text-warning text-sm font-semibold">{req.studentName.charAt(0)}</span>
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-foreground text-sm">{req.student_name}</p>
-                        <p className="text-xs text-muted-foreground">{req.roll_number} &middot; {req.branch} &middot; {req.department}</p>
+                        <p className="font-medium text-foreground text-sm">{req.studentName}</p>
+                        <p className="text-xs text-muted-foreground">{req.rollNumber} · {req.branch} · {req.department}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          Event: <span className="text-foreground">{event?.title || req.event_id}</span> &middot; {req.created_at.slice(0, 10)}
+                          Event: <span className="text-foreground">{event?.title || req.eventId}</span> · {req.createdAt?.slice(0, 10)}
                         </p>
                         {req.proof && (
                           <p className="text-xs text-muted-foreground mt-1">Proof: <span className="text-foreground">{req.proof.slice(0, 60)}{req.proof.length > 60 ? '...' : ''}</span></p>
@@ -156,22 +135,21 @@ export default function FacultyDashboard() {
         )}
       </div>
 
-      {/* All Branch Requests */}
       {branchRequests.length > 0 && (
         <div>
           <h2 className="text-lg font-display text-foreground mb-3">All Attendance Requests — Your Branches</h2>
           <div className="space-y-2">
             {branchRequests.map(req => {
-              const event = events.find(e => e.id === req.event_id);
+              const event = events.find(e => e.id === req.eventId);
               return (
                 <div key={req.id} className="campus-card p-4 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold text-muted-foreground">
-                      {req.student_name.charAt(0)}
+                      {req.studentName.charAt(0)}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{req.student_name} — {event?.title || 'Event'}</p>
-                      <p className="text-xs text-muted-foreground">{req.roll_number} &middot; {req.branch} &middot; {req.created_at.slice(0, 10)}</p>
+                      <p className="text-sm font-medium text-foreground truncate">{req.studentName} — {event?.title || 'Event'}</p>
+                      <p className="text-xs text-muted-foreground">{req.rollNumber} · {req.branch} · {req.createdAt?.slice(0, 10)}</p>
                     </div>
                   </div>
                   <span className={`campus-badge flex items-center gap-1 flex-shrink-0 ${statusBadge(req.status)}`}>
@@ -185,7 +163,6 @@ export default function FacultyDashboard() {
         </div>
       )}
 
-      {/* Upcoming Events */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-display text-foreground">Upcoming Events</h2>
