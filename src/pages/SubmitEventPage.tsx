@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { Calendar, MapPin, GitBranch, FileText, Clock } from 'lucide-react';
-import { useAuth } from '@/lib/auth-context';
-import { ALL_BRANCHES, Branch } from '@/lib/auth-context';
-import { apiFetch } from '@/lib/api';
+import { useAuth, ALL_BRANCHES, Branch } from '@/lib/auth-context';
+import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -10,164 +9,78 @@ import { useNavigate } from 'react-router-dom';
 export default function SubmitEventPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-
-  const [form, setForm] = useState({
-    title: '',
-    description: '',
-    date: '',
-    time: '',
-    location: '',
-  });
+  const [form, setForm] = useState({ title: '', description: '', date: '', time: '', location: '' });
   const [branch, setBranch] = useState<Branch | ''>('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const update = (key: string, value: string) =>
-    setForm(prev => ({ ...prev, [key]: value }));
+  const update = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!form.title.trim()) { toast.error('Event title is required'); return; }
     if (!form.date) { toast.error('Date is required'); return; }
     if (!branch) { toast.error('Please select a branch'); return; }
-    if (!user) { toast.error('You must be logged in to submit an event'); return; }
+    if (!user) { toast.error('Not logged in'); return; }
 
     setIsLoading(true);
-    try {
-      await apiFetch('/events', {
-        method: 'POST',
-        body: JSON.stringify({
-          title: form.title.trim(),
-          description: form.description.trim() || null,
-          date: form.date,
-          time: form.time || null,
-          location: form.location.trim() || null,
-          branch,
-        }),
-      });
-      toast.success('Event submitted for approval!', {
-        description: 'The HOD will review your event before it goes live.',
-      });
+    const { error } = await supabase.from('events').insert({
+      title: form.title.trim(),
+      description: form.description.trim() || null,
+      date: form.date,
+      time: form.time || null,
+      location: form.location.trim() || null,
+      branch,
+      status: 'pending',
+      created_by: user.id,
+    });
+
+    if (error) toast.error(`Failed to submit: ${error.message}`);
+    else {
+      toast.success('Event submitted for approval!', { description: 'The HOD will review your event before it goes live.' });
       navigate('/dashboard');
-    } catch (err: any) {
-      toast.error(`Failed to submit event: ${err.message}`);
-    } finally {
-      setIsLoading(false);
     }
+    setIsLoading(false);
   };
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-display text-foreground">Submit an Event</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Share an event with the campus community. It will be reviewed by the HOD before publishing.
-        </p>
+        <p className="text-muted-foreground text-sm mt-1">Share an event — it will be reviewed by the HOD before publishing.</p>
       </div>
-
-      <motion.form
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        onSubmit={handleSubmit}
-        className="campus-card p-6 space-y-5"
-      >
+      <motion.form initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} onSubmit={handleSubmit} className="campus-card p-6 space-y-5">
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
             <label className="text-sm font-medium text-foreground mb-1.5 block">Event Title *</label>
-            <input
-              required
-              data-testid="input-event-title"
-              value={form.title}
-              onChange={e => update('title', e.target.value)}
-              placeholder="e.g. Web Dev Bootcamp"
-              className="campus-input"
-            />
+            <input required value={form.title} onChange={e => update('title', e.target.value)} placeholder="e.g. Web Dev Bootcamp" className="campus-input" />
           </div>
-
           <div className="sm:col-span-2">
-            <label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5 block">
-              <FileText className="w-3.5 h-3.5" /> Description
-            </label>
-            <textarea
-              data-testid="input-event-description"
-              value={form.description}
-              onChange={e => update('description', e.target.value)}
-              placeholder="Tell us about the event..."
-              rows={4}
-              className="campus-input h-auto resize-none"
-            />
+            <label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5 block"><FileText className="w-3.5 h-3.5" /> Description</label>
+            <textarea value={form.description} onChange={e => update('description', e.target.value)} placeholder="Tell us about the event..." rows={4} className="campus-input h-auto resize-none" />
           </div>
-
           <div>
-            <label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5 block">
-              <Calendar className="w-3.5 h-3.5" /> Date *
-            </label>
-            <input
-              required
-              data-testid="input-event-date"
-              type="date"
-              value={form.date}
-              onChange={e => update('date', e.target.value)}
-              className="campus-input"
-            />
+            <label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5 block"><Calendar className="w-3.5 h-3.5" /> Date *</label>
+            <input required type="date" value={form.date} onChange={e => update('date', e.target.value)} className="campus-input" />
           </div>
-
           <div>
-            <label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5 block">
-              <Clock className="w-3.5 h-3.5" /> Time
-            </label>
-            <input
-              data-testid="input-event-time"
-              type="time"
-              value={form.time}
-              onChange={e => update('time', e.target.value)}
-              className="campus-input"
-            />
+            <label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5 block"><Clock className="w-3.5 h-3.5" /> Time</label>
+            <input type="time" value={form.time} onChange={e => update('time', e.target.value)} className="campus-input" />
           </div>
-
           <div>
-            <label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5 block">
-              <MapPin className="w-3.5 h-3.5" /> Location
-            </label>
-            <input
-              data-testid="input-event-location"
-              value={form.location}
-              onChange={e => update('location', e.target.value)}
-              placeholder="Venue or online link"
-              className="campus-input"
-            />
+            <label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5 block"><MapPin className="w-3.5 h-3.5" /> Location</label>
+            <input value={form.location} onChange={e => update('location', e.target.value)} placeholder="Venue or online link" className="campus-input" />
           </div>
-
           <div>
-            <label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5 block">
-              <GitBranch className="w-3.5 h-3.5" /> Branch *
-            </label>
-            <select
-              required
-              data-testid="select-event-branch"
-              value={branch}
-              onChange={e => setBranch(e.target.value as Branch)}
-              className="campus-input"
-            >
+            <label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5 block"><GitBranch className="w-3.5 h-3.5" /> Branch *</label>
+            <select required value={branch} onChange={e => setBranch(e.target.value as Branch)} className="campus-input">
               <option value="">Select branch</option>
-              {ALL_BRANCHES.map(b => (
-                <option key={b} value={b}>{b}</option>
-              ))}
+              {ALL_BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
         </div>
-
         <div className="pt-1">
-          <p className="text-xs text-muted-foreground mb-3">
-            Submitting as <span className="font-medium text-foreground">{user?.name}</span>.
-            Status will be set to <span className="font-medium text-warning">Pending</span> until HOD approval.
-          </p>
-          <button
-            type="submit"
-            data-testid="button-submit-event"
-            disabled={isLoading}
-            className="w-full py-2.5 rounded-lg campus-gradient text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
-          >
+          <p className="text-xs text-muted-foreground mb-3">Submitting as <span className="font-medium text-foreground">{user?.name}</span>. Status will be <span className="font-medium text-warning">Pending</span> until HOD approval.</p>
+          <button type="submit" disabled={isLoading} className="w-full py-2.5 rounded-lg campus-gradient text-primary-foreground font-medium text-sm hover:opacity-90 disabled:opacity-60">
             {isLoading ? 'Submitting…' : 'Submit for Approval'}
           </button>
         </div>

@@ -1,8 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Search, Calendar, MapPin, Grid3X3, List } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
-import type { Event } from '../../shared/schema';
+import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
+
+interface Event {
+  id: string;
+  title: string;
+  description?: string | null;
+  date: string;
+  time?: string | null;
+  location?: string | null;
+  branch?: string | null;
+  status: string;
+}
 
 export default function EventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
@@ -11,10 +21,15 @@ export default function EventsPage() {
   const [view, setView] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
-    apiFetch('/events')
-      .then(({ events }) => setEvents(events || []))
-      .catch(() => setEvents([]))
-      .finally(() => setLoading(false));
+    supabase
+      .from('events')
+      .select('*')
+      .eq('status', 'approved')
+      .order('date', { ascending: true })
+      .then(({ data }) => {
+        setEvents(data || []);
+        setLoading(false);
+      });
   }, []);
 
   const filtered = events.filter(e =>
@@ -28,17 +43,10 @@ export default function EventsPage() {
         <h1 className="text-2xl font-display text-foreground">Events</h1>
         <p className="text-muted-foreground text-sm mt-1">Discover what's happening on campus</p>
       </div>
-
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search events..."
-            className="campus-input pl-9"
-            data-testid="input-search-events"
-          />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search events..." className="campus-input pl-9" />
         </div>
         <div className="flex gap-1 border rounded-lg p-0.5 bg-card">
           <button onClick={() => setView('grid')} className={`p-1.5 rounded ${view === 'grid' ? 'bg-muted' : ''}`}><Grid3X3 className="w-4 h-4" /></button>
@@ -48,9 +56,7 @@ export default function EventsPage() {
 
       {loading ? (
         <div className={view === 'grid' ? 'grid sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-3'}>
-          {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="campus-card animate-pulse h-48" />
-          ))}
+          {[1,2,3,4,5,6].map(i => <div key={i} className="campus-card animate-pulse h-48" />)}
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">

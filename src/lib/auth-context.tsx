@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { apiFetch } from './api';
+import { supabase } from '@/integrations/supabase/client';
 
 export type UserRole = 'student' | 'faculty' | 'hod' | 'admin';
 export type Branch = 'CSE' | 'CSM' | 'CSD' | 'ECE' | 'IT' | 'EVM' | 'EEE';
@@ -51,25 +51,62 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+async function profileToUser(profile: any): Promise<User> {
+  return {
+    id: profile.id,
+    name: profile.name,
+    email: profile.email,
+    role: profile.role as UserRole,
+    department: profile.department || 'General',
+    branches: (profile.branches || []) as Branch[],
+    rollNumber: profile.roll_number || undefined,
+    approved: profile.approved,
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [registeredUsers, setRegisteredUsers] = useState<User[]>([]);
   const [pendingFaculty, setPendingFaculty] = useState<User[]>([]);
 
-  useEffect(() => {
-    apiFetch('/auth/me')
-      .then(({ user }) => setUser(user))
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+  const loadProfile = useCallback(async (userId: string): Promise<User | null> => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error || !data) return null;
+    return profileToUser(data);
   }, []);
 
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const profile = await loadProfile(session.user.id);
+        setUser(profile);
+      }
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        const profile = await loadProfile(session.user.id);
+        setUser(profile);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [loadProfile]);
+
   const refreshUsers = useCallback(async () => {
-    try {
-      const { users } = await apiFetch('/users');
-      setRegisteredUsers(users.filter((u: User) => u.approved));
-      setPendingFaculty(users.filter((u: User) => !u.approved && u.role === 'faculty'));
-    } catch {}
+    const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+    if (!data) return;
+    const users = await Promise.all(data.map(profileToUser));
+    setRegisteredUsers(users.filter(u => u.approved));
+    setPendingFaculty(users.filter(u => !u.approved && u.role === 'faculty'));
   }, []);
 
   useEffect(() => {
@@ -78,53 +115,105 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = useCallback(async (data: RegisterData) => {
     try {
-      const result = await apiFetch('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify(data),
+      if (!data.email.endsWith('@gnits.ac.in')) {
+        return { success: false, error: 'Please use a valid college email (@gnits.ac.in)' };
+      }
+
+      // Check if this email has a HOD invite
+      const { data: invite } = await supabase
+        .from('hod_invites')
+        .select('*')
+        .eq('email', data.email)
+        .maybeSingle();
+
+      const isHodInvite = !!invite;
+      const role: UserRole = isHodInvite ? 'hod' : data.role;
+      const branches: Branch[] = isHodInvite ? (invite.branches as Branch[]) : data.branches;
+      const department = branches[0] || 'General';
+      const approved = role === 'faculty' ? false : true;
+
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
       });
-      return { success: true, pendingApproval: result.pendingApproval };
+
+      if (signUpError) return { success: false, error: signUpError.message };
+      if (!authData.user) return { success: false, error: 'Signup failed — no user returned' };
+
+      const { error: profileError } = await supabase.from('profiles').insert({
+        id: authData.user.id,
+        name: `${data.firstName} ${data.lastName}`.trim(),
+        email: data.email,
+        role,
+        department,
+        branches,
+        roll_number: role === 'student' ? data.rollNumber || null : null,
+        phone: data.phone || null,
+        section: role === 'student' ? data.section || null : null,
+        approved,
+      });
+
+      if (profileError) return { success: false, error: profileError.message };
+
+      // Remove HOD invite if used
+      if (isHodInvite) {
+        await supabase.from('hod_invites').delete().eq('email', data.email);
+      }
+
+      return { success: true, pendingApproval: !approved };
     } catch (err: any) {
-      return { success: false, error: err.message };
+      return { success: false, error: err.message || 'Registration failed' };
     }
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     try {
-      const result = await apiFetch('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      });
-      setUser(result.user);
-      return { success: true, role: result.role };
-    } catch (err: any) {
-      if (err.data?.pendingApproval) {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return { success: false, error: 'Invalid credentials. Please check your email and password.' };
+      if (!data.user) return { success: false, error: 'Login failed' };
+
+      const profile = await loadProfile(data.user.id);
+      if (!profile) return { success: false, error: 'Account profile not found. Please contact admin.' };
+
+      if (!profile.approved && profile.role !== 'student') {
+        await supabase.auth.signOut();
         return { success: false, pendingApproval: true };
       }
-      return { success: false, error: err.message };
+
+      setUser(profile);
+      return { success: true, role: profile.role };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Login failed' };
     }
-  }, []);
+  }, [loadProfile]);
 
   const logout = useCallback(async () => {
-    await apiFetch('/auth/logout', { method: 'POST' }).catch(() => {});
+    await supabase.auth.signOut();
     setUser(null);
   }, []);
 
   const approveFaculty = useCallback(async (userId: string) => {
-    await apiFetch(`/users/${userId}/approve`, { method: 'POST' });
+    await supabase.from('profiles').update({ approved: true }).eq('id', userId);
     await refreshUsers();
   }, [refreshUsers]);
 
   const rejectFaculty = useCallback(async (userId: string) => {
-    await apiFetch(`/users/${userId}`, { method: 'DELETE' });
+    await supabase.from('profiles').delete().eq('id', userId);
     await refreshUsers();
   }, [refreshUsers]);
 
   const createHOD = useCallback(async (data: CreateHODData) => {
     try {
-      await apiFetch('/users/hod', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      if (!data.email.endsWith('@gnits.ac.in')) {
+        return { success: false, error: 'Must use @gnits.ac.in email' };
+      }
+      // Upsert a HOD invite — when they register, they automatically get HOD role + branches
+      const { error } = await supabase.from('hod_invites').upsert({
+        email: data.email,
+        branches: data.branches,
+      }, { onConflict: 'email' });
+
+      if (error) return { success: false, error: error.message };
       await refreshUsers();
       return { success: true };
     } catch (err: any) {
