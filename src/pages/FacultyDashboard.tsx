@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, ClipboardCheck, CircleCheck as CheckCircle, Circle as XCircle, Clock, Bell, Users, ChevronRight } from 'lucide-react';
+import { Calendar, ClipboardCheck, CheckCircle, XCircle, Clock, Bell, Users, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';

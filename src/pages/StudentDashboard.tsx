@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, MapPin, ClipboardCheck, CirclePlus as PlusCircle, MessageSquare, Zap, Clock, CircleCheck as CheckCircle, Circle as XCircle, ChevronRight } from 'lucide-react';
+import { Calendar, MapPin, ClipboardCheck, PlusCircle, MessageSquare, Zap, Clock, CheckCircle, XCircle, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
