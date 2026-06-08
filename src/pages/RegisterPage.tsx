@@ -14,6 +14,7 @@ export default function RegisterPage() {
     role: '' as '' | 'student' | 'faculty',
     branches: [] as Branch[],
     rollNumber: '',
+    section: '',
     password: '', confirmPassword: '',
   });
   const [showPass, setShowPass] = useState(false);
@@ -54,6 +55,7 @@ export default function RegisterPage() {
       if (!form.role) return 'Please select a role';
       if (form.branches.length === 0) return 'Please select at least one branch';
       if (form.role === 'student' && !form.rollNumber.trim()) return 'Roll number is required';
+      if (form.role === 'student' && !form.section.trim()) return 'Section is required';
     }
     if (step === 3) {
       if (form.password.length < 6) return 'Password must be at least 6 characters';
@@ -84,6 +86,7 @@ export default function RegisterPage() {
       role: form.role as 'student' | 'faculty',
       branches: form.branches,
       rollNumber: form.role === 'student' ? form.rollNumber : undefined,
+      section: form.role === 'student' ? form.section : undefined,
       password: form.password,
     });
 
@@ -203,10 +206,15 @@ export default function RegisterPage() {
                 {form.role && (
                   <>
                     {form.role === 'student' && (
-                      <div>
-                        <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-3">Roll Number</h3>
-                        <input value={form.rollNumber} onChange={e => updateField('rollNumber', e.target.value.toUpperCase())} placeholder="e.g. 22251A0501" className="campus-input" />
-                        <p className="text-xs text-muted-foreground mt-1">Enter your college roll number</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-3">Roll Number</h3>
+                          <input value={form.rollNumber} onChange={e => updateField('rollNumber', e.target.value.toUpperCase())} placeholder="e.g. 22251A0501" className="campus-input" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-3">Section</h3>
+                          <input value={form.section} onChange={e => updateField('section', e.target.value.toUpperCase().slice(0, 3))} placeholder="e.g. A" className="campus-input" />
+                        </div>
                       </div>
                     )}
 
