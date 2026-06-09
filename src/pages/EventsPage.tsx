@@ -41,9 +41,11 @@ export default function EventsPage() {
     setLoading(false);
   };
 
+  // ProtectedRoute guarantees auth is ready before this mounts,
+  // so fetch unconditionally on mount — no user-state dependency needed.
   useEffect(() => {
-    if (user) fetchEvents();
-  }, [user]);
+    fetchEvents();
+  }, []);
 
   const filtered = events.filter(e =>
     (e.title ?? '').toLowerCase().includes(search.toLowerCase()) ||

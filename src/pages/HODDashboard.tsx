@@ -34,8 +34,12 @@ export default function HODDashboard() {
   };
 
   const approveEvent = async (id: string, title: string) => {
-    await supabase.from('events').update({ status: 'approved', updated_at: new Date().toISOString() }).eq('id', id);
-    toast.success(`"${title}" approved!`);
+    const { error } = await supabase
+      .from('events')
+      .update({ status: 'approved', updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) { toast.error(`Approval failed: ${error.message}`); return; }
+    toast.success(`"${title}" approved and is now live!`);
     setPendingEvents(p => p.filter(e => e.id !== id));
   };
   const rejectEvent = async (id: string, title: string) => {
