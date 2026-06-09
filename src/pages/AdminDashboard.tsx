@@ -40,7 +40,7 @@ export default function AdminDashboard() {
   const pendingFaculty = allUsers.filter(u => !u.is_approved && u.role === 'faculty');
 
   const filteredUsers = approvedUsers.filter(u => {
-    const matchSearch = u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = (u.name ?? '').toLowerCase().includes(search.toLowerCase()) || (u.email ?? '').toLowerCase().includes(search.toLowerCase());
     return matchSearch && (roleFilter === 'all' || u.role === roleFilter);
   });
 
