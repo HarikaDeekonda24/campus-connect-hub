@@ -37,27 +37,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-async function loadUserByAuthId(authUserId: string): Promise<User | null> {
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('user_id', authUserId)
-    .maybeSingle();
-  if (!profile) return null;
-  const { data: roleRow } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', authUserId)
-    .maybeSingle();
+async function profileToUser(profile: any): Promise<User> {
   return {
-    id: profile.user_id,
+    id: profile.id,
     name: profile.name,
     email: profile.email,
-    role: (roleRow?.role as UserRole) || 'student',
+    role: profile.role as UserRole,
     department: profile.department || 'General',
     branches: (profile.branches || []) as Branch[],
     rollNumber: profile.roll_number || undefined,
-    is_approved: profile.approved,
+    is_approved: profile.is_approved,
   };
 }
 
@@ -67,42 +56,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [registeredUsers, setRegisteredUsers] = useState<User[]>([]);
   const [pendingFaculty, setPendingFaculty] = useState<User[]>([]);
 
+  const loadProfile = useCallback(async (userId: string): Promise<User | null> => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error || !data) return null;
+    return profileToUser(data);
+  }, []);
+
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
-        setUser(await loadUserByAuthId(session.user.id));
+        const profile = await loadProfile(session.user.id);
+        setUser(profile);
       }
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        setTimeout(async () => {
-          setUser(await loadUserByAuthId(session.user.id));
-        }, 0);
+        const profile = await loadProfile(session.user.id);
+        setUser(profile);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [loadProfile]);
 
   const refreshUsers = useCallback(async () => {
-    const { data: profiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-    const { data: roles } = await supabase.from('user_roles').select('*');
-    if (!profiles) return;
-    const roleMap = new Map((roles || []).map(r => [r.user_id, r.role]));
-    const users: User[] = profiles.map(p => ({
-      id: p.user_id,
-      name: p.name,
-      email: p.email,
-      role: (roleMap.get(p.user_id) as UserRole) || 'student',
-      department: p.department || 'General',
-      branches: (p.branches || []) as Branch[],
-      rollNumber: p.roll_number || undefined,
-      is_approved: p.approved,
-    }));
+    const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+    if (!data) return;
+    const users = await Promise.all(data.map(profileToUser));
     setRegisteredUsers(users.filter(u => u.is_approved));
     setPendingFaculty(users.filter(u => !u.is_approved && u.role === 'faculty'));
   }, []);
@@ -117,30 +105,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: 'Please use a valid college email (@gnits.ac.in)' };
       }
 
-      const department = data.branches[0] || 'General';
-      const redirectUrl = `${window.location.origin}/`;
+      // Check if this email has a HOD invite
+      const { data: invite } = await supabase
+        .from('hod_invites')
+        .select('*')
+        .eq('email', data.email)
+        .maybeSingle();
+
+      const isHodInvite = !!invite;
+      const role: UserRole = isHodInvite ? 'hod' : data.role;
+      const branches: Branch[] = isHodInvite ? (invite.branches as Branch[]) : data.branches;
+      const department = branches[0] || 'General';
 
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            name: `${data.firstName} ${data.lastName}`.trim(),
-            role: data.role,
-            department,
-            branches: data.branches,
-            roll_number: data.role === 'student' ? data.rollNumber || null : null,
-            phone: data.phone || null,
-            section: data.role === 'student' ? data.section || null : null,
-          },
-        },
       });
 
       if (signUpError) return { success: false, error: signUpError.message };
       if (!authData.user) return { success: false, error: 'Signup failed — no user returned' };
 
-      return { success: true, pendingApproval: data.role === 'faculty' };
+      const { error: profileError } = await supabase.from('profiles').insert({
+        id: authData.user.id,
+        name: `${data.firstName} ${data.lastName}`.trim(),
+        email: data.email,
+        role,
+        department,
+        branches,
+        roll_number: role === 'student' ? data.rollNumber || null : null,
+        phone: data.phone || null,
+        section: role === 'student' ? data.section || null : null,
+        is_approved: true,
+      });
+
+      if (profileError) return { success: false, error: profileError.message };
+
+      // Remove HOD invite if used
+      if (isHodInvite) {
+        await supabase.from('hod_invites').delete().eq('email', data.email);
+      }
+
+      return { success: true };
     } catch (err: any) {
       return { success: false, error: err.message || 'Registration failed' };
     }
@@ -152,18 +157,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) return { success: false, error: 'Invalid credentials. Please check your email and password.' };
       if (!data.user) return { success: false, error: 'Login failed' };
 
-      const profile = await loadUserByAuthId(data.user.id);
+      const profile = await loadProfile(data.user.id);
       if (!profile) return { success: false, error: 'Account profile not found. Please contact admin.' };
 
       setUser(profile);
-      if (!profile.is_approved && profile.role === 'faculty') {
-        return { success: true, role: profile.role, pendingApproval: true };
-      }
       return { success: true, role: profile.role };
     } catch (err: any) {
       return { success: false, error: err.message || 'Login failed' };
     }
-  }, []);
+  }, [loadProfile]);
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
@@ -171,18 +173,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const approveFaculty = useCallback(async (userId: string) => {
-    await supabase.from('profiles').update({ approved: true }).eq('user_id', userId);
+    await supabase.from('profiles').update({ is_approved: true }).eq('id', userId);
     await refreshUsers();
   }, [refreshUsers]);
 
   const rejectFaculty = useCallback(async (userId: string) => {
-    await supabase.from('profiles').delete().eq('user_id', userId);
+    await supabase.from('profiles').delete().eq('id', userId);
     await refreshUsers();
   }, [refreshUsers]);
 
-  const createHOD = useCallback(async (_data: CreateHODData) => {
-    return { success: false, error: 'HOD invites are not yet configured.' };
-  }, []);
+  const createHOD = useCallback(async (data: CreateHODData) => {
+    try {
+      if (!data.email.endsWith('@gnits.ac.in')) {
+        return { success: false, error: 'Must use @gnits.ac.in email' };
+      }
+      // Upsert a HOD invite — when they register, they automatically get HOD role + branches
+      const { error } = await supabase.from('hod_invites').upsert({
+        email: data.email,
+        branches: data.branches,
+      }, { onConflict: 'email' });
+
+      if (error) return { success: false, error: error.message };
+      await refreshUsers();
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  }, [refreshUsers]);
 
   return (
     <AuthContext.Provider value={{
