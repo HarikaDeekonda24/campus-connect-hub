@@ -7,7 +7,11 @@ import { toast } from 'sonner';
 
 type Tab = 'overview' | 'approvals' | 'attendance';
 interface Event { id: string; title: string; description?: string | null; date: string; time?: string | null; location?: string | null; branch?: string | null; }
-interface AttendanceRequest { id: string; student_name: string; roll_number: string; branch: string; department: string; proof: string; status: string; created_at: string; }
+interface AttendanceRequest {
+  id: string; student_name: string; roll_number: string; branch: string; department: string;
+  event_name?: string | null; event_date?: string | null; proof_url?: string | null;
+  status: string; created_at: string;
+}
 
 export default function HODDashboard() {
   const { user } = useAuth();
@@ -68,9 +72,39 @@ export default function HODDashboard() {
     toast.info(`"${title}" rejected and removed`);
     setPendingEvents(p => p.filter(e => e.id !== id));
   };
-  const updateAttendance = async (id: string, status: string, name: string) => {
-    await supabase.from('attendance_requests').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
-    toast.success(`${name}'s request ${status}`);
+  const updateAttendance = async (id: string, status: string, req: AttendanceRequest) => {
+    const { error } = await supabase
+      .from('attendance_requests')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) { toast.error(`Failed to update: ${error.message}`); return; }
+
+    // On approval: send in-app notification to all faculty in the same branch
+    if (status === 'approved') {
+      const { data: facultyMembers } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'faculty')
+        .contains('branches', [req.branch]);
+
+      if (facultyMembers?.length) {
+        const notifMessage = `Attendance approved: ${req.student_name} (${req.roll_number})` +
+          (req.event_name ? ` for "${req.event_name}"` : '') +
+          (req.event_date ? ` on ${req.event_date}` : '') +
+          ` [${req.branch}]`;
+        await supabase.from('notifications').insert(
+          facultyMembers.map(f => ({
+            user_id: f.id,
+            message: notifMessage,
+            type: 'attendance_approved',
+          }))
+        );
+      }
+      toast.success(`${req.student_name}'s request approved — faculty notified`);
+    } else {
+      toast.info(`${req.student_name}'s request rejected`);
+    }
+
     setAttendanceRequests(p => p.map(r => r.id === id ? { ...r, status } : r));
   };
 
@@ -182,20 +216,32 @@ export default function HODDashboard() {
           : attendanceRequests.length === 0 ? <div className="text-center py-16 text-muted-foreground"><ClipboardCheck className="w-12 h-12 mx-auto mb-3 opacity-40" /><p>No attendance requests.</p></div>
           : <div className="space-y-3">{attendanceRequests.map((req, i) => (
             <motion.div key={req.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="campus-card p-4">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center flex-shrink-0 text-sm font-semibold text-muted-foreground">{req.student_name.charAt(0)}</div>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center flex-shrink-0 mt-0.5 text-sm font-semibold text-muted-foreground">{req.student_name.charAt(0)}</div>
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground">{req.student_name}</p>
                     <p className="text-xs text-muted-foreground">{req.roll_number} · {req.branch} · {req.created_at?.slice(0, 10)}</p>
-                    <p className="text-xs text-muted-foreground truncate">Proof: {req.proof}</p>
+                    {req.event_name && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Event: <span className="text-foreground">{req.event_name}</span>
+                        {req.event_date ? ` · ${req.event_date}` : ''}
+                      </p>
+                    )}
+                    {req.proof_url && (
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-xs">Proof: {req.proof_url}</p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {req.status === 'pending' ? (
                     <>
-                      <button onClick={() => updateAttendance(req.id, 'approved', req.student_name)} className="p-2 rounded-lg bg-success/10 text-success hover:bg-success/20"><CheckCircle className="w-4 h-4" /></button>
-                      <button onClick={() => updateAttendance(req.id, 'rejected', req.student_name)} className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20"><XCircle className="w-4 h-4" /></button>
+                      <button onClick={() => updateAttendance(req.id, 'approved', req)} title="Approve" className="p-2 rounded-lg bg-success/10 text-success hover:bg-success/20 flex items-center gap-1.5 text-xs font-medium px-3">
+                        <CheckCircle className="w-4 h-4" /> Approve
+                      </button>
+                      <button onClick={() => updateAttendance(req.id, 'rejected', req)} title="Reject" className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 flex items-center gap-1.5 text-xs font-medium px-3">
+                        <XCircle className="w-4 h-4" /> Reject
+                      </button>
                     </>
                   ) : (
                     <span className={`campus-badge flex items-center gap-1 ${req.status === 'approved' ? 'campus-badge-success' : 'campus-badge-destructive'}`}>

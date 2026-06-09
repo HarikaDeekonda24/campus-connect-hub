@@ -38,11 +38,13 @@ CREATE TABLE IF NOT EXISTS public.attendance_requests (
   id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   student_id   UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   event_id     UUID REFERENCES public.events(id) ON DELETE SET NULL,
+  event_name   TEXT,
+  event_date   TEXT,
   student_name TEXT NOT NULL,
   roll_number  TEXT NOT NULL,
   branch       TEXT NOT NULL,
   department   TEXT NOT NULL,
-  proof        TEXT NOT NULL,
+  proof_url    TEXT NOT NULL DEFAULT '',
   status       TEXT NOT NULL DEFAULT 'pending',
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -56,13 +58,24 @@ CREATE TABLE IF NOT EXISTS public.hod_invites (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- 5. NOTIFICATIONS
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  message    TEXT NOT NULL,
+  type       TEXT NOT NULL DEFAULT 'info',
+  read       BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ============================================================
 -- ROW LEVEL SECURITY
 -- ============================================================
-ALTER TABLE public.profiles          ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.events            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.events              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance_requests ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.hod_invites       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.hod_invites         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notifications       ENABLE ROW LEVEL SECURITY;
 
 -- Profiles
 CREATE POLICY "profiles_select" ON public.profiles FOR SELECT TO authenticated USING (true);
@@ -74,19 +87,37 @@ CREATE POLICY "profiles_delete" ON public.profiles FOR DELETE TO authenticated U
 CREATE POLICY "events_select" ON public.events FOR SELECT TO authenticated USING (true);
 CREATE POLICY "events_insert" ON public.events FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "events_update" ON public.events FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "events_delete" ON public.events FOR DELETE TO authenticated USING (true);
 
 -- Attendance
 CREATE POLICY "attendance_select" ON public.attendance_requests FOR SELECT TO authenticated USING (true);
 CREATE POLICY "attendance_insert" ON public.attendance_requests FOR INSERT TO authenticated WITH CHECK (auth.uid() = student_id);
 CREATE POLICY "attendance_update" ON public.attendance_requests FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "attendance_delete" ON public.attendance_requests FOR DELETE TO authenticated USING (true);
 
 -- HOD invites
 CREATE POLICY "hod_invites_select" ON public.hod_invites FOR SELECT TO authenticated USING (true);
 CREATE POLICY "hod_invites_insert" ON public.hod_invites FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "hod_invites_delete" ON public.hod_invites FOR DELETE TO authenticated USING (true);
 
--- Add approved column if running against an existing table
+-- Notifications (each user sees only their own)
+CREATE POLICY "notifications_select" ON public.notifications FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "notifications_insert" ON public.notifications FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "notifications_update" ON public.notifications FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+
+-- ============================================================
+-- MIGRATIONS — apply to existing tables without breaking data
+-- ============================================================
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_approved BOOLEAN NOT NULL DEFAULT true;
+
+-- attendance_requests: rename proof → proof_url, add event_name / event_date
+DO $$ BEGIN
+  ALTER TABLE public.attendance_requests RENAME COLUMN proof TO proof_url;
+EXCEPTION WHEN undefined_column THEN NULL;
+END $$;
+ALTER TABLE public.attendance_requests ADD COLUMN IF NOT EXISTS event_name TEXT;
+ALTER TABLE public.attendance_requests ADD COLUMN IF NOT EXISTS event_date TEXT;
+ALTER TABLE public.attendance_requests ALTER COLUMN proof_url SET DEFAULT '';
 
 -- ============================================================
 -- SEED DATA — sample approved events
