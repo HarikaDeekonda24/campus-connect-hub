@@ -18,7 +18,7 @@ export default function HODDashboard() {
   const [attendanceRequests, setAttendanceRequests] = useState<AttendanceRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { if (user) fetchData(); }, [user]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -39,8 +39,9 @@ export default function HODDashboard() {
     setPendingEvents(p => p.filter(e => e.id !== id));
   };
   const rejectEvent = async (id: string, title: string) => {
-    await supabase.from('events').update({ status: 'rejected', updated_at: new Date().toISOString() }).eq('id', id);
-    toast.info(`"${title}" rejected`);
+    const { error } = await supabase.from('events').delete().eq('id', id);
+    if (error) { toast.error(error.message); return; }
+    toast.info(`"${title}" rejected and removed`);
     setPendingEvents(p => p.filter(e => e.id !== id));
   };
   const updateAttendance = async (id: string, status: string, name: string) => {
