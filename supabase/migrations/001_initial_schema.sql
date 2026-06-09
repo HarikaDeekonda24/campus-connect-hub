@@ -101,5 +101,5 @@ ON CONFLICT DO NOTHING;
 -- ============================================================
 -- NOTE: To create the first Admin account:
 -- 1. Register in the app with admin@gnits.ac.in
--- 2. Then run: UPDATE public.profiles SET role='admin', approved=true WHERE email='admin@gnits.ac.in';
+-- 2. Then run: UPDATE public.profiles SET role='admin', is_approved=true WHERE email='admin@gnits.ac.in';
 -- ============================================================
