@@ -37,6 +37,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs = 5000): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => window.setTimeout(() => resolve(null), timeoutMs)),
+  ]);
+}
+
 async function profileToUser(profile: any): Promise<User> {
   return {
     id: profile.id,
@@ -67,13 +74,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        const profile = await loadProfile(session.user.id);
-        setUser(profile);
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        const result = await withTimeout(supabase.auth.getSession());
+        const session = result?.data.session;
+
+        if (mounted && session?.user) {
+          const profile = await withTimeout(loadProfile(session.user.id));
+          if (mounted) setUser(profile);
+        }
+      } catch {
+        if (mounted) setUser(null);
+      } finally {
+        if (mounted) setLoading(false);
       }
-      setLoading(false);
-    });
+    };
+
+    initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
@@ -84,7 +103,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [loadProfile]);
 
   const refreshUsers = useCallback(async () => {
