@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, ClipboardCheck, CheckCircle, XCircle, Calendar, MapPin, Shield } from 'lucide-react';
+import { FileText, ClipboardCheck, CheckCircle, XCircle, Calendar, MapPin, Shield, RefreshCw, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
@@ -17,18 +17,38 @@ export default function HODDashboard() {
   const [pendingEvents, setPendingEvents] = useState<Event[]>([]);
   const [attendanceRequests, setAttendanceRequests] = useState<AttendanceRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingError, setPendingError] = useState<string | null>(null);
 
-  useEffect(() => { if (user) fetchData(); }, [user]);
+  // ProtectedRoute guarantees auth is ready before this mounts — fetch on mount unconditionally.
+  useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
     setLoading(true);
-    const [evtRes, pendingEvtRes, attRes] = await Promise.all([
-      supabase.from('events').select('*').eq('status', 'approved').order('date').limit(5),
-      supabase.from('events').select('*').eq('status', 'pending').order('created_at', { ascending: false }),
-      supabase.from('attendance_requests').select('*').in('branch', userBranches).order('created_at', { ascending: false }),
+    setPendingError(null);
+
+    // Fetch pending events: ALL events with status='pending', no branch filter
+    const { data: pendingData, error: pendingErr } = await supabase
+      .from('events')
+      .select('id, title, description, date, time, location, branch')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (pendingErr) {
+      setPendingError(pendingErr.message);
+      setPendingEvents([]);
+    } else {
+      setPendingEvents(pendingData || []);
+    }
+
+    // Fetch upcoming approved events and attendance in parallel
+    const [evtRes, attRes] = await Promise.all([
+      supabase.from('events').select('id, title, date, time, location, branch').eq('status', 'approved').order('date').limit(5),
+      userBranches.length > 0
+        ? supabase.from('attendance_requests').select('*').in('branch', userBranches).order('created_at', { ascending: false })
+        : supabase.from('attendance_requests').select('*').order('created_at', { ascending: false }),
     ]);
+
     setUpcomingEvents(evtRes.data || []);
-    setPendingEvents(pendingEvtRes.data || []);
     setAttendanceRequests(attRes.data || []);
     setLoading(false);
   };
@@ -115,9 +135,20 @@ export default function HODDashboard() {
 
       {activeTab === 'approvals' && (
         <div className="space-y-4">
-          <h2 className="text-lg font-display text-foreground">Pending Event Approvals</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-display text-foreground">Pending Event Approvals</h2>
+            <button onClick={fetchData} disabled={loading} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 disabled:opacity-50 transition-colors">
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+            </button>
+          </div>
+          {pendingError && (
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <div><p className="font-medium">Failed to load pending events</p><p className="text-xs mt-0.5 opacity-80">{pendingError}</p></div>
+            </div>
+          )}
           {loading ? <p className="text-muted-foreground text-sm">Loading...</p>
-          : pendingEvents.length === 0 ? <div className="text-center py-16 text-muted-foreground"><CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-40" /><p>All events reviewed!</p></div>
+          : !pendingError && pendingEvents.length === 0 ? <div className="text-center py-16 text-muted-foreground"><CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-40" /><p>All events reviewed — nothing pending!</p></div>
           : <div className="space-y-4">{pendingEvents.map((event, i) => (
             <motion.div key={event.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="campus-card p-5">
               <div className="flex flex-col md:flex-row gap-4">
