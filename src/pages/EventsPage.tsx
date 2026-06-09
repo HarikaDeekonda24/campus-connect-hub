@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Search, Calendar, MapPin, Grid3X3, List } from 'lucide-react';
+import { Search, Calendar, MapPin, Grid3X3, List, RefreshCw, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/lib/auth-context';
 import { motion } from 'framer-motion';
 
 interface Event {
@@ -15,38 +16,66 @@ interface Event {
 }
 
 export default function EventsPage() {
+  const { user } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [view, setView] = useState<'grid' | 'list'>('grid');
 
-  useEffect(() => {
-    supabase
+  const fetchEvents = async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: err } = await supabase
       .from('events')
-      .select('*')
+      .select('id, title, description, date, time, location, branch, status')
       .eq('status', 'approved')
-      .order('date', { ascending: true })
-      .then(({ data }) => {
-        setEvents(data || []);
-        setLoading(false);
-      });
-  }, []);
+      .order('date', { ascending: true });
+
+    if (err) {
+      setError(err.message);
+      setEvents([]);
+    } else {
+      setEvents(data || []);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (user) fetchEvents();
+  }, [user]);
 
   const filtered = events.filter(e =>
-    e.title.toLowerCase().includes(search.toLowerCase()) ||
+    (e.title ?? '').toLowerCase().includes(search.toLowerCase()) ||
     (e.description ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-display text-foreground">Events</h1>
-        <p className="text-muted-foreground text-sm mt-1">Discover what's happening on campus</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-display text-foreground">Events</h1>
+          <p className="text-muted-foreground text-sm mt-1">Discover what's happening on campus</p>
+        </div>
+        <button
+          onClick={fetchEvents}
+          disabled={loading}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 disabled:opacity-50 transition-colors"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
       </div>
+
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search events..." className="campus-input pl-9" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search events..."
+            className="campus-input pl-9"
+          />
         </div>
         <div className="flex gap-1 border rounded-lg p-0.5 bg-card">
           <button onClick={() => setView('grid')} className={`p-1.5 rounded ${view === 'grid' ? 'bg-muted' : ''}`}><Grid3X3 className="w-4 h-4" /></button>
@@ -54,14 +83,26 @@ export default function EventsPage() {
         </div>
       </div>
 
+      {error && (
+        <div className="flex items-start gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-medium">Failed to load events</p>
+            <p className="text-xs mt-0.5 opacity-80">{error}</p>
+            <button onClick={fetchEvents} className="text-xs underline mt-1">Try again</button>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className={view === 'grid' ? 'grid sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-3'}>
-          {[1,2,3,4,5,6].map(i => <div key={i} className="campus-card animate-pulse h-48" />)}
+          {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="campus-card animate-pulse h-48" />)}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 && !error ? (
         <div className="text-center py-16 text-muted-foreground">
           <Calendar className="w-12 h-12 mx-auto mb-3 opacity-40" />
-          <p>{search ? 'No events match your search' : 'No approved events at the moment'}</p>
+          <p className="font-medium">{search ? 'No events match your search' : 'No approved events yet'}</p>
+          {!search && <p className="text-xs mt-1 opacity-70">Events posted by faculty and HODs will appear here</p>}
         </div>
       ) : (
         <div className={view === 'grid' ? 'grid sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-3'}>
